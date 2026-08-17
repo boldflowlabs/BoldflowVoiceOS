@@ -63,9 +63,9 @@ export function StatTile({
                 </div>
             )}
 
-            <p className="min-h-[1rem] text-small text-muted-foreground">
+            <div className="min-h-[1rem] text-small text-muted-foreground">
                 {loading ? <Skeleton className="h-3 w-16" /> : (sub ?? ' ')}
-            </p>
+            </div>
         </Card>
     );
 }
