@@ -42,6 +42,8 @@ from api.schemas.admin_clients import (
     CreateClientAccountResponse,
     CreateClientRequest,
     CreateClientResponse,
+    DeductCreditsRequest,
+    DeductCreditsResponse,
     GrantCreditsRequest,
     GrantCreditsResponse,
     RecordPasswordRequest,
@@ -62,6 +64,9 @@ from api.services.admin.profile import (
     is_org_suspended,
     setup_fee_seconds,
     update_admin_profile,
+)
+from api.services.configuration.ai_model_configuration import (
+    get_organization_ai_model_configuration_v2_state,
 )
 from api.services.auth.depends import (
     create_user_configuration_with_mps_key,
@@ -183,6 +188,29 @@ async def _load_live_index(vl_client):
         return None, "unknown"
 
 
+async def _resolve_configuration_status(org_id: int) -> tuple[str, Optional[str]]:
+    """Resolve an organization's AI model configuration status and any error.
+
+    Returns (configuration_status, configuration_error) where status is
+    'active' | 'error' | 'unconfigured'.
+    """
+    try:
+        state = await get_organization_ai_model_configuration_v2_state(org_id)
+        if state.validation_error:
+            return "error", state.validation_error
+        if state.configuration is not None:
+            if state.configuration.mode == "byok":
+                if state.configuration.byok and (
+                    state.configuration.byok.pipeline or state.configuration.byok.realtime
+                ):
+                    return "active", None
+            return "unconfigured", None
+        return "unconfigured", None
+    except Exception as e:
+        logger.warning(f"Failed to resolve configuration status for org {org_id}: {e}")
+        return "error", str(e)
+
+
 @router.get("", response_model=AdminClientsListResponse)
 async def list_clients(
     user: UserModel = Depends(get_superuser),
@@ -204,17 +232,32 @@ async def list_clients(
     clients: List[AdminClientItem] = []
     for organization in organizations:
         owner = _resolve_owner(organization)
-        configs = await db_client.list_telephony_configurations_by_provider(
-            organization.id, VOICELINK_PROVIDER
+        # Enumerate all telephony configurations across all providers
+        all_telephony_configs = await db_client.list_telephony_configurations(
+            organization.id
         )
-        did_number = next(
-            (
-                (config.credentials or {}).get("did_number")
-                for config in _ordered_voicelink_configs(configs)
-                if (config.credentials or {}).get("did_number")
-            ),
-            None,
+        configs = [
+            c for c in all_telephony_configs if c.provider == VOICELINK_PROVIDER
+        ]
+        telephony_providers = list(
+            dict.fromkeys(
+                [c.provider for c in all_telephony_configs if c.provider]
+            )
         )
+
+        did_number = None
+        for config in sorted(
+            all_telephony_configs, key=lambda c: not c.is_default_outbound
+        ):
+            creds = config.credentials or {}
+            num = (
+                creds.get("did_number")
+                or creds.get("phone_number")
+                or creds.get("from_number")
+            )
+            if num:
+                did_number = num
+                break
 
         live_state = default_live_state
         live_client_id = None
@@ -256,6 +299,23 @@ async def list_clients(
         if client_lock_config and isinstance(client_lock_config.value, dict):
             is_locked = bool(client_lock_config.value.get("is_locked", True))
 
+        config_status, config_error = await _resolve_configuration_status(
+            organization.id
+        )
+
+        if (
+            organization.voicelink_status == VOICELINK_STATUS_PROVISIONED
+            or live_state == "active"
+        ) and VOICELINK_PROVIDER not in telephony_providers:
+            telephony_providers.append(VOICELINK_PROVIDER)
+
+        if telephony_providers or all_telephony_configs:
+            telephony_status = "active"
+        elif organization.voicelink_error:
+            telephony_status = "error"
+        else:
+            telephony_status = "unconfigured"
+
         clients.append(
             AdminClientItem(
                 organization_id=organization.id,
@@ -279,6 +339,11 @@ async def list_clients(
                 money_spent_inr=money["money_spent_inr"],
                 suspended=suspended,
                 is_locked=is_locked,
+                configuration_status=config_status,
+                configuration_error=config_error,
+                telephony_providers=telephony_providers,
+                telephony_status=telephony_status,
+                telephony_count=len(all_telephony_configs),
             )
         )
 
@@ -531,6 +596,69 @@ async def grant_credits(
     )
 
 
+@router.post("/{org_id}/deduct-credits", response_model=DeductCreditsResponse)
+async def deduct_credits(
+    org_id: int,
+    request: DeductCreditsRequest,
+    user: UserModel = Depends(get_superuser),
+) -> DeductCreditsResponse:
+    """Deduct call credits from a metered org's balance (1 credit = 60 seconds)."""
+    organization = await db_client.get_organization_by_id(org_id)
+    if organization is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    if organization.free_call_seconds_remaining is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Organization is unmetered (unlimited credits); cannot deduct credits from an unmetered organization.",
+        )
+
+    deducted_seconds = request.minutes * 60
+    current_seconds = organization.free_call_seconds_remaining or 0
+    if current_seconds < deducted_seconds:
+        available_minutes = current_seconds // 60
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient credit balance: organization has {available_minutes} minute(s) ({current_seconds}s), cannot deduct {request.minutes} minute(s) ({deducted_seconds}s).",
+        )
+
+    desc = f"Admin deduction: {request.minutes} minutes"
+    if request.reason:
+        desc = f"{desc} ({request.reason.strip()})"
+
+    new_balance = await db_client.deduct_credits_tx(
+        org_id,
+        deducted_seconds,
+        created_by=user.id,
+        description=desc,
+    )
+    if new_balance is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to deduct credits. Balance may be insufficient or organization is unmetered.",
+        )
+
+    await record_admin_action(
+        actor_user_id=user.id,
+        target_organization_id=org_id,
+        action="deduct_credits",
+        detail={
+            "minutes": request.minutes,
+            "deducted_seconds": deducted_seconds,
+            "new_balance_seconds": new_balance,
+            "reason": request.reason,
+        },
+    )
+    logger.info(
+        f"Superuser {user.id} deducted {request.minutes} minutes ({deducted_seconds}s) from org {org_id}; balance now {new_balance}s"
+    )
+    return DeductCreditsResponse(
+        organization_id=org_id,
+        deducted_seconds=deducted_seconds,
+        credits_seconds_remaining=new_balance,
+    )
+
+
 @router.get("/{org_id}/password", response_model=ClientPasswordResponse)
 async def reveal_client_password(
     org_id: int,
@@ -734,6 +862,24 @@ async def get_client_detail(
     if client_lock_config and isinstance(client_lock_config.value, dict):
         is_locked = bool(client_lock_config.value.get("is_locked", True))
 
+    config_status, config_error = await _resolve_configuration_status(org_id)
+
+    all_telephony_configs = await db_client.list_telephony_configurations(org_id)
+    telephony_providers = list(
+        dict.fromkeys([c.provider for c in all_telephony_configs if c.provider])
+    )
+    if (
+        organization.voicelink_status == VOICELINK_STATUS_PROVISIONED
+    ) and VOICELINK_PROVIDER not in telephony_providers:
+        telephony_providers.append(VOICELINK_PROVIDER)
+
+    if telephony_providers or all_telephony_configs:
+        telephony_status = "active"
+    elif organization.voicelink_error:
+        telephony_status = "error"
+    else:
+        telephony_status = "unconfigured"
+
     return AdminClientDetailResponse(
         organization_id=organization.id,
         organization_name=organization.provider_id,
@@ -754,6 +900,11 @@ async def get_client_detail(
         money=AdminMoney(**money),
         suspended=bool(profile.get("suspended")),
         is_locked=is_locked,
+        configuration_status=config_status,
+        configuration_error=config_error,
+        telephony_providers=telephony_providers,
+        telephony_status=telephony_status,
+        telephony_count=len(all_telephony_configs),
         notes=list(profile.get("notes") or []),
         kyc=kyc,
         usage=usage,
@@ -771,7 +922,7 @@ async def toggle_client_lock(
     if organization is None:
         raise HTTPException(status_code=404, detail="Organization not found")
 
-    await db_client.set_organization_configuration_by_key(
+    await db_client.upsert_configuration(
         organization_id=org_id,
         key=OrganizationConfigurationKey.CLIENT_LOCK.value,
         value={"is_locked": bool(request.is_locked)},

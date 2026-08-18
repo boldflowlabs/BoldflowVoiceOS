@@ -83,6 +83,12 @@ from pipecat.services.speechmatics.stt import (
 from pipecat.transcriptions.language import Language
 from pipecat.utils.text.xml_function_tag_filter import XMLFunctionTagFilter
 
+try:
+    from pipecat_rumik import RumikTTSService, RumikTTSSettings
+except ImportError:
+    RumikTTSService = None
+    RumikTTSSettings = None
+
 if TYPE_CHECKING:
     from api.services.pipecat.audio_config import AudioConfig
 
@@ -720,6 +726,58 @@ def create_tts_service(
         return SmallestTTSService(
             api_key=user_config.tts.api_key,
             settings=settings_kwargs,
+            text_filters=[xml_function_tag_filter],
+            skip_aggregator_types=["recording_router", "recording"],
+            silence_time_s=1.0,
+        )
+    elif user_config.tts.provider == ServiceProviders.RUMIK.value:
+        if RumikTTSService is None:
+            raise HTTPException(
+                status_code=500,
+                detail="pipecat-rumik package is not installed on the server",
+            )
+        gateway_url = (
+            getattr(user_config.tts, "gateway_url", None)
+            or "https://silk-api.rumik.ai"
+        )
+        _validate_runtime_service_url(gateway_url, "gateway_url")
+        model = getattr(user_config.tts, "model", None) or "mulberry"
+        voice = getattr(user_config.tts, "voice", None) or "ira"
+        description = getattr(user_config.tts, "description", None) or (
+            "a warm 30s indian voice, smooth timbre, conversational pacing, like a friendly narrator"
+        )
+        temperature = getattr(user_config.tts, "temperature", None)
+        top_p = getattr(user_config.tts, "top_p", None)
+        top_k = getattr(user_config.tts, "top_k", None)
+        repetition_penalty = getattr(user_config.tts, "repetition_penalty", None)
+        max_new_tokens = getattr(user_config.tts, "max_new_tokens", None)
+
+        settings_kwargs_rumik: dict = {
+            "model": model,
+        }
+        if temperature is not None:
+            settings_kwargs_rumik["temperature"] = temperature
+        if top_p is not None:
+            settings_kwargs_rumik["top_p"] = top_p
+        if top_k is not None:
+            settings_kwargs_rumik["top_k"] = top_k
+        if repetition_penalty is not None:
+            settings_kwargs_rumik["repetition_penalty"] = repetition_penalty
+        if max_new_tokens is not None:
+            settings_kwargs_rumik["max_new_tokens"] = max_new_tokens
+
+        if model == "mulberry":
+            settings_kwargs_rumik["description"] = description
+            if voice:
+                settings_kwargs_rumik["voice"] = voice
+        elif model == "muga":
+            if voice:
+                settings_kwargs_rumik["voice"] = voice
+
+        return RumikTTSService(
+            api_key=user_config.tts.api_key,
+            gateway_url=gateway_url,
+            settings=RumikTTSService.Settings(**settings_kwargs_rumik),
             text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
             silence_time_s=1.0,

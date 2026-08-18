@@ -536,7 +536,9 @@ export type ByokPipelineAiModelConfiguration = {
         provider: 'azure_speech';
     } & AzureSpeechTtsConfiguration) | ({
         provider: 'smallest';
-    } & SmallestAittsConfiguration);
+    } & SmallestAittsConfiguration) | ({
+        provider: 'rumik';
+    } & RumikTtsConfiguration);
     /**
      * Stt
      */
@@ -4869,6 +4871,76 @@ export type SarvamSttConfiguration = {
      * BCP-47 language code. Use unknown for automatic language detection.
      */
     language?: string;
+};
+
+/**
+ * Rumik
+ *
+ * Rumik AI streaming text-to-speech for Hindi, English, and Hinglish. Supports Silk Mulberry 1.5 (fast, description-driven) and Silk Muga 1 (expressive tone tags).
+ */
+export type RumikTtsConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'rumik';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Rumik TTS model ('mulberry' for fast description-driven synthesis or 'muga' for expressive tone-steered synthesis).
+     */
+    model?: string;
+    /**
+     * Voice
+     *
+     * Rumik preset voice / speaker name (e.g. 'ira', 'siya', 'emma', 'lucas').
+     */
+    voice?: string;
+    /**
+     * Description
+     *
+     * Expressive voice description (required for mulberry; builds the voice style/tone).
+     */
+    description?: string;
+    /**
+     * Gateway Url
+     *
+     * Rumik AI gateway URL endpoint.
+     */
+    gateway_url?: string;
+    /**
+     * Temperature
+     *
+     * Sampling temperature (0.7 recommended for muga).
+     */
+    temperature?: number;
+    /**
+     * Top P
+     *
+     * Nucleus sampling value.
+     */
+    top_p?: number;
+    /**
+     * Top K
+     *
+     * Top-k sampling value.
+     */
+    top_k?: number;
+    /**
+     * Repetition Penalty
+     *
+     * Penalty for repeated tokens.
+     */
+    repetition_penalty?: number;
+    /**
+     * Max New Tokens
+     *
+     * Output length cap.
+     */
+    max_new_tokens?: number;
 };
 
 /**
@@ -9250,7 +9322,7 @@ export type GetVoicesApiV1UserConfigurationsVoicesProviderGetData = {
         /**
          * Provider
          */
-        provider: 'elevenlabs' | 'deepgram' | 'sarvam' | 'cartesia' | 'dograh' | 'rime';
+        provider: 'elevenlabs' | 'deepgram' | 'sarvam' | 'cartesia' | 'dograh' | 'rime' | 'rumik';
     };
     query?: {
         /**

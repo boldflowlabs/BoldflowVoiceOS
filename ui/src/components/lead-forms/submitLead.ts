@@ -12,6 +12,7 @@ import type { LeadKind, LeadOrigin, LeadSource } from "./leadFieldOptions";
 import { postLeadToService } from "./onboardingServiceClient";
 
 const SUBMIT_EVENT: Record<LeadKind, string> = {
+  support: PostHogEvent.SUPPORT_SUBMITTED,
   hire_expert: PostHogEvent.HIRE_EXPERT_SUBMITTED,
   enterprise: PostHogEvent.ENTERPRISE_LEAD_SUBMITTED,
 };

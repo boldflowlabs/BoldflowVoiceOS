@@ -7,6 +7,7 @@ import {
   KeyRound,
   Loader2,
   Lock,
+  MinusCircle,
   RefreshCw,
   Search,
   Unlock,
@@ -24,7 +25,12 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { PlanBadge, SuspendedBadge } from "@/components/admin/AdminBadges";
+import {
+  ConfigurationStatusBadge,
+  PlanBadge,
+  SuspendedBadge,
+  TelephonyStatusBadge,
+} from "@/components/admin/AdminBadges";
 import {
   formatCredits,
   formatInr,
@@ -72,6 +78,7 @@ import {
   ADMIN_PLANS,
   type AdminClient,
   createAdminClient,
+  deductCreditsFromClient,
   grantCreditsToClient,
   listAdminClients,
   resetClientPassword,
@@ -81,45 +88,6 @@ import { useAuth } from "@/lib/auth";
 import { impersonateAsSuperadmin } from "@/lib/utils";
 
 const LOW_BALANCE_THRESHOLD_INR = 100;
-
-function VoiceLinkStatusBadge({ client }: { client: AdminClient }) {
-  let badge: ReactNode;
-  switch (client.live_state) {
-    case "active":
-      badge = (
-        <Badge className="bg-emerald-600 hover:bg-emerald-600">Active</Badge>
-      );
-      break;
-    case "missing":
-      badge = <Badge variant="destructive">Missing</Badge>;
-      break;
-    case "unconfigured":
-      badge = <Badge variant="outline">Not configured</Badge>;
-      break;
-    default:
-      badge = <Badge variant="secondary">Unknown</Badge>;
-  }
-
-  const tooltip =
-    client.voicelink_error ||
-    (client.live_state !== "active" &&
-    client.voicelink_status &&
-    client.voicelink_status !== "provisioned"
-      ? `Stored status: ${client.voicelink_status}`
-      : null);
-
-  if (!tooltip) return badge;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className="inline-flex cursor-help">{badge}</span>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs">
-        <p>{tooltip}</p>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
 
 /** True when the org is unmetered (unlimited) on money or credits. */
 function isUnlimited(client: AdminClient): boolean {
@@ -157,6 +125,11 @@ export default function ClientsPage() {
   // Grant credits dialog state (kept as a quick row action)
   const [grantTarget, setGrantTarget] = useState<AdminClient | null>(null);
   const [grantMinutes, setGrantMinutes] = useState("");
+
+  // Deduct credits dialog state
+  const [deductTarget, setDeductTarget] = useState<AdminClient | null>(null);
+  const [deductMinutes, setDeductMinutes] = useState("");
+  const [deductReason, setDeductReason] = useState("");
 
   // New client dialog state
   const [createOpen, setCreateOpen] = useState(false);
@@ -256,6 +229,48 @@ export default function ClientsPage() {
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to grant credits",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const deductMinutesNumber = Number(deductMinutes);
+  const deductMaxMinutes = deductTarget?.credits_seconds_remaining
+    ? Math.floor(deductTarget.credits_seconds_remaining / 60)
+    : 0;
+  const deductMinutesValid =
+    Number.isInteger(deductMinutesNumber) &&
+    deductMinutesNumber >= 1 &&
+    deductMinutesNumber <= 100000 &&
+    deductMinutesNumber <= deductMaxMinutes;
+
+  const openDeductDialog = (client: AdminClient) => {
+    setDeductTarget(client);
+    setDeductMinutes("");
+    setDeductReason("");
+  };
+
+  const onDeductCredits = async () => {
+    if (!deductTarget || !deductMinutesValid) return;
+    setSubmitting(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Missing access token");
+      const result = await deductCreditsFromClient(
+        token,
+        deductTarget.organization_id,
+        deductMinutesNumber,
+        deductReason.trim() || undefined,
+      );
+      toast.success(
+        `Deducted ${deductMinutesNumber} minute${deductMinutesNumber === 1 ? "" : "s"} — balance is now ${formatCredits(result.credits_seconds_remaining)}`,
+      );
+      setDeductTarget(null);
+      await fetchClients();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to deduct credits",
       );
     } finally {
       setSubmitting(false);
@@ -390,7 +405,7 @@ export default function ClientsPage() {
     lowBalanceOnly;
 
   return (
-    <PageShell width="wide">
+    <PageShell width="full" className="max-w-[1600px]">
       <PageHeader
         eyebrow="Superuser"
         title="Clients"
@@ -490,35 +505,38 @@ export default function ClientsPage() {
             description="No clients match the current search and filters."
           />
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)]">
-            <Table>
+          <div className="w-full overflow-x-auto rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)]">
+            <Table className="w-full">
               <TableHeader>
                 <TableRow className="border-border/50 hover:bg-transparent">
-                  <TableHead className="text-label text-muted-foreground">
+                  <TableHead className="text-label text-muted-foreground whitespace-nowrap">
                     Organization
                   </TableHead>
-                  <TableHead className="text-label text-muted-foreground">
+                  <TableHead className="text-label text-muted-foreground whitespace-nowrap">
                     Owner email
                   </TableHead>
-                  <TableHead className="text-label text-muted-foreground">
+                  <TableHead className="text-label text-muted-foreground whitespace-nowrap">
                     Plan
                   </TableHead>
-                  <TableHead className="text-label text-muted-foreground">
-                    VoiceLink
+                  <TableHead className="text-label text-muted-foreground whitespace-nowrap">
+                    Telephony
                   </TableHead>
-                  <TableHead className="text-label text-muted-foreground">
+                  <TableHead className="text-label text-muted-foreground whitespace-nowrap">
+                    Configuration
+                  </TableHead>
+                  <TableHead className="text-label text-muted-foreground whitespace-nowrap">
                     DID
                   </TableHead>
-                  <TableHead className="text-label text-right text-muted-foreground">
+                  <TableHead className="text-label text-right text-muted-foreground whitespace-nowrap">
                     ₹ Balance
                   </TableHead>
-                  <TableHead className="text-label text-right text-muted-foreground">
+                  <TableHead className="text-label text-right text-muted-foreground whitespace-nowrap">
                     ₹ Spent
                   </TableHead>
-                  <TableHead className="text-label text-muted-foreground">
+                  <TableHead className="text-label text-muted-foreground whitespace-nowrap">
                     Status
                   </TableHead>
-                  <TableHead className="text-label text-right text-muted-foreground">
+                  <TableHead className="text-label text-right text-muted-foreground whitespace-nowrap min-w-[210px] pr-4">
                     Actions
                   </TableHead>
                 </TableRow>
@@ -529,27 +547,39 @@ export default function ClientsPage() {
                     key={client.organization_id}
                     className="border-border/50 transition-colors hover:bg-muted/40"
                   >
-                    <TableCell>
+                    <TableCell className="min-w-[140px] max-w-[180px]">
                       <Link
                         href={`/clients/${client.organization_id}`}
                         className="font-medium tabular-nums hover:underline"
                       >
                         #{client.organization_id}
                       </Link>
-                      <div className="max-w-[180px] truncate text-xs text-muted-foreground">
+                      <div className="truncate text-xs text-muted-foreground">
                         {client.organization_name}
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="min-w-[140px] max-w-[180px] truncate text-muted-foreground">
                       {client.owner_email ?? "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <PlanBadge plan={client.effective_plan} />
                     </TableCell>
-                    <TableCell>
-                      <VoiceLinkStatusBadge client={client} />
+                    <TableCell className="whitespace-nowrap">
+                      <TelephonyStatusBadge
+                        providers={client.telephony_providers}
+                        status={client.telephony_status}
+                        error={client.voicelink_error}
+                        liveState={client.live_state}
+                        voicelinkStatus={client.voicelink_status}
+                      />
                     </TableCell>
-                    <TableCell className="font-mono text-sm tabular-nums">
+                    <TableCell className="whitespace-nowrap">
+                      <ConfigurationStatusBadge
+                        status={client.configuration_status}
+                        error={client.configuration_error}
+                      />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">
                       {client.did_number ??
                         (client.has_voicelink_config ? (
                           <span className="font-sans text-muted-foreground">
@@ -559,23 +589,23 @@ export default function ClientsPage() {
                           "—"
                         ))}
                     </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums">
+                    <TableCell className="whitespace-nowrap text-right text-xs sm:text-sm tabular-nums">
                       {isUnlimited(client) ? (
                         <span className="text-muted-foreground">Unlimited</span>
                       ) : (
                         balanceDisplay(client)
                       )}
                     </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums">
+                    <TableCell className="whitespace-nowrap text-right text-xs sm:text-sm tabular-nums">
                       {client.money_spent_inr !== undefined
                         ? formatInr(client.money_spent_inr)
                         : "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <SuspendedBadge suspended={client.suspended} />
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <TableCell className="text-right min-w-[210px] whitespace-nowrap pr-3">
+                      <div className="flex items-center justify-end gap-1 flex-nowrap">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span className="inline-flex">
@@ -594,6 +624,32 @@ export default function ClientsPage() {
                               {isUnlimited(client)
                                 ? "Unmetered org (unlimited) — granting would meter it"
                                 : "Grant call credits (minutes)"}
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDeductDialog(client)}
+                                disabled={
+                                  isUnlimited(client) ||
+                                  (client.credits_seconds_remaining || 0) <= 0
+                                }
+                              >
+                                <MinusCircle className="h-3.5 w-3.5 text-rose-500" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p>
+                              {isUnlimited(client)
+                                ? "Unmetered org (unlimited)"
+                                : (client.credits_seconds_remaining || 0) <= 0
+                                ? "No credits available to deduct"
+                                : "Deduct call credits (minutes)"}
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -655,7 +711,7 @@ export default function ClientsPage() {
                             </p>
                           </TooltipContent>
                         </Tooltip>
-                        <Button variant="outline" size="sm" asChild>
+                        <Button variant="outline" size="sm" asChild className="shrink-0 h-8 px-2.5 text-xs">
                           <Link href={`/clients/${client.organization_id}`}>
                             Manage
                             <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -715,6 +771,68 @@ export default function ClientsPage() {
               >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Grant credits
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Deduct credits dialog */}
+        <Dialog
+          open={deductTarget !== null}
+          onOpenChange={(open) => !open && setDeductTarget(null)}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Deduct credits</DialogTitle>
+              <DialogDescription>
+                Deducts call credits from the metered balance of{" "}
+                {deductTarget?.owner_email ?? "this organization"} (1 credit = 1
+                minute of call time). Current balance:{" "}
+                {deductTarget ? balanceDisplay(deductTarget) : "—"}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="deduct-minutes">Minutes to deduct</Label>
+                <Input
+                  id="deduct-minutes"
+                  type="number"
+                  min={1}
+                  max={deductMaxMinutes > 0 ? deductMaxMinutes : 1}
+                  step={1}
+                  value={deductMinutes}
+                  onChange={(e) => setDeductMinutes(e.target.value)}
+                  placeholder={deductMaxMinutes > 0 ? `Max: ${deductMaxMinutes}` : "0"}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Available to deduct: {deductMaxMinutes} minute(s).
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="deduct-reason">Reason / Note (optional)</Label>
+                <Input
+                  id="deduct-reason"
+                  value={deductReason}
+                  onChange={(e) => setDeductReason(e.target.value)}
+                  placeholder="e.g. Billing adjustment, refund"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setDeductTarget(null)}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={onDeductCredits}
+                disabled={submitting || !deductMinutesValid}
+              >
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Deduct credits
               </Button>
             </DialogFooter>
           </DialogContent>

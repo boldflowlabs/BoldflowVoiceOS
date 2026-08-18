@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, BarChart3, Plus, Sparkles, Workflow, Zap } from 'lucide-react';
+import { ArrowRight, BarChart3, Sparkles, Workflow, Zap } from 'lucide-react';
 import Link from 'next/link';
 
 import { OverviewDashboard } from '@/components/dashboard/OverviewDashboard';
@@ -26,12 +26,6 @@ export default function HomePage() {
                             <Link href="/analytics" className="gap-1.5">
                                 <BarChart3 className="h-3.5 w-3.5" />
                                 Analytics
-                            </Link>
-                        </Button>
-                        <Button variant="default" size="sm" asChild>
-                            <Link href="/workflow" className="gap-1.5">
-                                <Plus className="h-3.5 w-3.5" />
-                                New Agent
                             </Link>
                         </Button>
                     </div>

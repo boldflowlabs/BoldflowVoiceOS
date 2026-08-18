@@ -24,6 +24,11 @@ async def _handle(kind: str, submission: LeadSubmission) -> LeadResponse:
     return LeadResponse(status="ok", emailed=emailed)
 
 
+@router.post("/support", response_model=LeadResponse)
+async def submit_support(submission: LeadSubmission) -> LeadResponse:
+    return await _handle("support", submission)
+
+
 @router.post("/hire-expert", response_model=LeadResponse)
 async def submit_hire_expert(submission: LeadSubmission) -> LeadResponse:
     return await _handle("hire_expert", submission)
@@ -37,3 +42,4 @@ async def submit_enterprise(submission: LeadSubmission) -> LeadResponse:
 @router.post("/onboarding", response_model=LeadResponse)
 async def submit_onboarding(submission: LeadSubmission) -> LeadResponse:
     return await _handle("onboarding", submission)
+

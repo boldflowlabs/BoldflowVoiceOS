@@ -10,6 +10,7 @@ import {
   Database,
   Home,
   Key,
+  LifeBuoy,
   Lock,
   LogOut,
   Megaphone,
@@ -18,10 +19,8 @@ import {
   Phone,
   PhoneCall,
   PhoneIncoming,
-  Plus,
   Settings,
   Sparkles,
-  UserRound,
   Users,
   Workflow,
   Wrench,
@@ -48,6 +47,7 @@ import { useLeadForms } from "@/context/LeadFormsContext";
 import { useTelephonyConfigWarnings } from "@/context/TelephonyConfigWarningsContext";
 import { useUserConfig } from "@/context/UserConfigContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import type { Team } from "@stackframe/stack";
 import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
@@ -66,11 +66,11 @@ export function TopNavbar() {
   const { provider, getSelectedTeam, logout, user } = useAuth();
   const { isAdmin } = useIsAdmin();
   const { isSuperuser, planFeatures } = useUserConfig();
-  const { openHireExpert } = useLeadForms();
+  const { openSupport } = useLeadForms();
   const { telnyxMissingWebhookPublicKeyCount } = useTelephonyConfigWarnings();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const selectedTeam = getSelectedTeam ? getSelectedTeam() : null;
+  const selectedTeam = provider === "stack" && getSelectedTeam ? (getSelectedTeam() as Team | null) : null;
   const hasTelephonyWarning = telnyxMissingWebhookPublicKeyCount > 0;
 
   const displayIdentity =
@@ -315,23 +315,11 @@ export function TopNavbar() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => openHireExpert("navbar")}
+            onClick={() => openSupport("navbar")}
             className="hidden sm:inline-flex text-xs text-muted-foreground hover:text-foreground h-8"
           >
-            <UserRound className="mr-1.5 h-3.5 w-3.5" />
-            Hire Expert
-          </Button>
-
-          <Button
-            variant="default"
-            size="sm"
-            asChild
-            className="h-8 gap-1.5 text-xs font-medium"
-          >
-            <Link href="/workflow">
-              <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">New Agent</span>
-            </Link>
+            <LifeBuoy className="mr-1.5 h-3.5 w-3.5" />
+            Support
           </Button>
 
           <div className="hidden sm:block">

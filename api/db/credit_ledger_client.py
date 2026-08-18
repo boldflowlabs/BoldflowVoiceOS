@@ -382,6 +382,50 @@ class CreditLedgerClient(BaseDBClient):
                 await session.rollback()
                 return None
 
+    async def deduct_credits_tx(
+        self,
+        organization_id: int,
+        seconds: int,
+        created_by: Optional[int],
+        description: Optional[str] = None,
+    ) -> Optional[int]:
+        """Deduct seconds from a metered org (admin deduction) + ledger row; returns new balance.
+
+        Returns None for unmetered orgs, non-positive amounts, or if balance is insufficient (cannot deduct below 0).
+        """
+        if seconds <= 0:
+            return None
+        async with self.async_session() as session:
+            try:
+                result = await session.execute(
+                    update(OrganizationModel)
+                    .where(
+                        OrganizationModel.id == organization_id,
+                        _BALANCE.isnot(None),
+                        _BALANCE >= seconds,
+                    )
+                    .values(free_call_seconds_remaining=_BALANCE - seconds)
+                    .returning(_BALANCE)
+                )
+                new_balance = result.scalar_one_or_none()
+                if new_balance is None:
+                    await session.rollback()
+                    return None
+                self._ledger_row(
+                    session,
+                    organization_id=organization_id,
+                    kind="deduction",
+                    delta_seconds=-seconds,
+                    balance_after=new_balance,
+                    created_by=created_by,
+                    description=description,
+                )
+                await session.commit()
+                return new_balance
+            except IntegrityError:
+                await session.rollback()
+                return None
+
     async def charge_purchase_tx(
         self,
         organization_id: int,

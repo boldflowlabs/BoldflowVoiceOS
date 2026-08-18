@@ -37,6 +37,11 @@ class AdminClientItem(BaseModel):
     money_spent_inr: float = 0.0
     suspended: bool = False
     is_locked: bool = True
+    configuration_status: str = "unconfigured"
+    configuration_error: Optional[str] = None
+    telephony_providers: List[str] = Field(default_factory=list)
+    telephony_status: str = "unconfigured"
+    telephony_count: int = 0
 
 
 class AdminClientsListResponse(BaseModel):
@@ -134,6 +139,28 @@ class GrantCreditsResponse(BaseModel):
     granted_seconds: int
     # Balance after the grant; never None here (unmetered orgs are rejected).
     credits_seconds_remaining: Optional[int] = None
+
+
+class DeductCreditsRequest(BaseModel):
+    """Deduction for a metered org's call-credits balance (1 credit = 1 minute)."""
+
+    minutes: int = Field(
+        ...,
+        ge=1,
+        le=100_000,
+        description="Minutes of call credit to deduct (converted to seconds).",
+    )
+    reason: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="Optional reason for the deduction to note on the ledger.",
+    )
+
+
+class DeductCreditsResponse(BaseModel):
+    organization_id: int
+    deducted_seconds: int
+    credits_seconds_remaining: int
 
 
 class ClientPasswordResponse(BaseModel):
@@ -253,6 +280,11 @@ class AdminClientDetailResponse(BaseModel):
     money: AdminMoney
     suspended: bool = False
     is_locked: bool = True
+    configuration_status: str = "unconfigured"
+    configuration_error: Optional[str] = None
+    telephony_providers: List[str] = Field(default_factory=list)
+    telephony_status: str = "unconfigured"
+    telephony_count: int = 0
     notes: List[AdminNote] = Field(default_factory=list)
     kyc: AdminKycStatusResponse
     # Omitted (null) if the usage rollup could not be computed.

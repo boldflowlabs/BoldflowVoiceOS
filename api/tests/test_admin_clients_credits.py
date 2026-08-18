@@ -181,6 +181,124 @@ def test_grant_credits_validates_minutes_bounds():
         assert response.status_code == 422, bad_body
 
 
+# ======== DEDUCT CREDITS ========
+
+
+def test_deduct_credits_subtracts_seconds_and_returns_new_balance():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    with (
+        patch("api.routes.admin_clients.db_client") as db,
+        patch("api.routes.admin_clients.record_admin_action", new=AsyncMock()),
+    ):
+        db.get_organization_by_id = AsyncMock(
+            return_value=_org(free_call_seconds_remaining=1200)
+        )
+        db.deduct_credits_tx = AsyncMock(return_value=600)
+
+        response = client.post(
+            "/admin/clients/5/deduct-credits", json={"minutes": 10}
+        )
+
+    assert response.status_code == 200
+    db.deduct_credits_tx.assert_awaited_once_with(
+        5, 600, created_by=1, description="Admin deduction: 10 minutes"
+    )
+    body = response.json()
+    assert body["organization_id"] == 5
+    assert body["deducted_seconds"] == 600
+    assert body["credits_seconds_remaining"] == 600
+
+
+def test_deduct_credits_with_reason():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    with (
+        patch("api.routes.admin_clients.db_client") as db,
+        patch("api.routes.admin_clients.record_admin_action", new=AsyncMock()),
+    ):
+        db.get_organization_by_id = AsyncMock(
+            return_value=_org(free_call_seconds_remaining=1200)
+        )
+        db.deduct_credits_tx = AsyncMock(return_value=600)
+
+        response = client.post(
+            "/admin/clients/5/deduct-credits",
+            json={"minutes": 10, "reason": "Billing adjustment for cancelled test"},
+        )
+
+    assert response.status_code == 200
+    db.deduct_credits_tx.assert_awaited_once_with(
+        5,
+        600,
+        created_by=1,
+        description="Admin deduction: 10 minutes (Billing adjustment for cancelled test)",
+    )
+
+
+def test_deduct_credits_400_when_insufficient_balance():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    with patch("api.routes.admin_clients.db_client") as db:
+        db.get_organization_by_id = AsyncMock(
+            return_value=_org(free_call_seconds_remaining=300)  # 5 minutes
+        )
+        db.deduct_credits_tx = AsyncMock()
+
+        response = client.post(
+            "/admin/clients/5/deduct-credits", json={"minutes": 10}  # wants 600s
+        )
+
+    assert response.status_code == 400
+    assert "Insufficient credit balance" in response.json()["detail"]
+    db.deduct_credits_tx.assert_not_awaited()
+
+
+def test_deduct_credits_409_for_unmetered_org():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    with patch("api.routes.admin_clients.db_client") as db:
+        db.get_organization_by_id = AsyncMock(
+            return_value=_org(free_call_seconds_remaining=None)
+        )
+        db.deduct_credits_tx = AsyncMock()
+
+        response = client.post(
+            "/admin/clients/5/deduct-credits", json={"minutes": 5}
+        )
+
+    assert response.status_code == 409
+    assert "unmetered" in response.json()["detail"]
+    db.deduct_credits_tx.assert_not_awaited()
+
+
+def test_deduct_credits_404_for_unknown_org():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    with patch("api.routes.admin_clients.db_client") as db:
+        db.get_organization_by_id = AsyncMock(return_value=None)
+
+        response = client.post(
+            "/admin/clients/999/deduct-credits", json={"minutes": 5}
+        )
+
+    assert response.status_code == 404
+
+
+def test_deduct_credits_validates_minutes_bounds():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    for bad_body in ({"minutes": 0}, {"minutes": 100_001}, {}):
+        response = client.post("/admin/clients/5/deduct-credits", json=bad_body)
+        assert response.status_code == 422, bad_body
+
+
 # ======== CREDITS IN LIST ========
 
 
@@ -220,7 +338,8 @@ def test_list_clients_reports_credits_and_null_passthrough():
         db.list_organizations_with_users = AsyncMock(
             return_value=[metered, unmetered]
         )
-        db.list_telephony_configurations_by_provider = AsyncMock(return_value=[])
+        db.get_configuration = AsyncMock(return_value=None)
+        db.list_telephony_configurations = AsyncMock(return_value=[])
 
         response = client.get("/admin/clients")
 

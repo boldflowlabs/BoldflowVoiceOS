@@ -44,14 +44,15 @@ async function post(path: string, body: unknown): Promise<void> {
 }
 
 // Map a lead kind to its endpoint path on our backend.
-const LEAD_PATH: Record<"hire_expert" | "enterprise", string> = {
+const LEAD_PATH: Record<"support" | "hire_expert" | "enterprise", string> = {
+  support: "/api/v1/leads/support",
   hire_expert: "/api/v1/leads/hire-expert",
   enterprise: "/api/v1/leads/enterprise",
 };
 
-// Persist a lead submission (hire-expert / enterprise). Email is in the body.
+// Persist a lead submission (support / hire-expert / enterprise). Email is in the body.
 export async function postLeadToService(
-  kind: "hire_expert" | "enterprise",
+  kind: "support" | "hire_expert" | "enterprise",
   body: Record<string, unknown>,
 ): Promise<void> {
   await post(LEAD_PATH[kind], body);

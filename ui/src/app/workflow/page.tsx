@@ -8,11 +8,12 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { PageShell } from '@/components/layout/PageShell';
 import { LockedSafeguardBanner } from '@/components/LockedSafeguardBanner';
 import { Card, CardContent } from '@/components/ui/card';
-import { CreateWorkflowButton } from "@/components/workflow/CreateWorkflowButton";
 import { AgentFolderView } from '@/components/workflow/folders/AgentFolderView';
-import { CreateFolderButton } from '@/components/workflow/folders/CreateFolderButton';
 import { FolderSection } from '@/components/workflow/folders/FolderSection';
-import { UploadWorkflowButton } from '@/components/workflow/UploadWorkflowButton';
+import {
+    WorkflowEmptyStateAction,
+    WorkflowHeaderActions,
+} from '@/components/workflow/WorkflowHeaderActions';
 import { getServerAccessToken, getServerAuthProvider, getServerUser } from '@/lib/auth/server';
 import { BRAND } from '@/lib/brand';
 import logger from '@/lib/logger';
@@ -97,7 +98,7 @@ async function WorkflowList() {
                                     ? "Deploy your first voice agent or start from an award-winning template."
                                     : `Your conversational voice agents are configured and deployed by the ${BRAND.name} team.`
                             }
-                            action={isSuperuser ? <CreateWorkflowButton /> : undefined}
+                            action={<WorkflowEmptyStateAction />}
                         />
                     )}
                 </div>
@@ -123,8 +124,6 @@ async function WorkflowList() {
 }
 
 async function PageContent() {
-    const user = await getServerUser();
-    const isSuperuser = user ? ('is_superuser' in user ? Boolean(user.is_superuser) : false) : false;
     const workflowList = await WorkflowList();
 
     return (
@@ -134,15 +133,7 @@ async function PageContent() {
                 eyebrow="Voice Studio"
                 title="Conversational Agents"
                 subtitle="View and monitor production-grade voice workflows assigned to your organization."
-                actions={
-                    isSuperuser ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                            <UploadWorkflowButton />
-                            <CreateFolderButton />
-                            <CreateWorkflowButton />
-                        </div>
-                    ) : undefined
-                }
+                actions={<WorkflowHeaderActions />}
             />
 
             <div className="mt-4 space-y-6">

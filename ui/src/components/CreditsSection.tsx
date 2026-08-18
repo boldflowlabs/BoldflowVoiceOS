@@ -233,7 +233,7 @@ export function CreditsSection() {
               Top up your credits
             </h2>
             <span className="text-xs text-muted-foreground">
-              Secure checkout via PayU
+              Secure online checkout
             </span>
           </div>
           <div className="mt-3 grid items-stretch gap-4 sm:grid-cols-3">

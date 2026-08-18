@@ -28,10 +28,13 @@ from email.message import EmailMessage
 from email.utils import formatdate
 from typing import Any, Mapping
 
+from loguru import logger
+
 from api.constants import ADMIN_EMAILS
 
 # Human-friendly labels for the lead "kind" sent by the frontend.
 _KIND_LABELS = {
+    "support": "Support Request",
     "hire_expert": "Hire an Expert",
     "enterprise": "Enterprise / Strategy Call",
     "onboarding": "Onboarding",
@@ -81,14 +84,19 @@ def _build_message(kind: str, payload: Mapping[str, Any], cfg: dict[str, Any], t
     label = _KIND_LABELS.get(kind, kind or "Lead")
     country = str(payload.get("country") or "").strip()
     contact = str(payload.get("email") or payload.get("workEmail") or "unknown").strip()
+    topic = str(payload.get("topic") or "").strip()
+    subject_title = str(payload.get("subject") or topic or "").strip()
 
-    subject = f"New {label} lead"
+    if kind == "support":
+        subject = f"Support Request: {subject_title}" if subject_title else "New Support Request"
+    else:
+        subject = f"New {label} lead"
     if country:
         subject += f" — {country}"
     subject += f" ({contact})"
 
     # Render the payload as a readable key: value list (skip empties).
-    lines = [f"A new {label} lead was submitted.", ""]
+    lines = [f"A new {label} was submitted.", ""]
     for key in sorted(payload.keys()):
         value = payload[key]
         if value is None or value == "":

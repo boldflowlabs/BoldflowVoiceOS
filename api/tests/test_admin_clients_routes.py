@@ -143,9 +143,12 @@ def test_list_clients_excludes_caller_and_reports_voicelink_state():
         ),
     ):
         db.list_organizations_with_users = AsyncMock(return_value=[org])
-        db.list_telephony_configurations_by_provider = AsyncMock(
+        db.get_configuration = AsyncMock(return_value=None)
+        db.list_telephony_configurations = AsyncMock(
             return_value=[
                 SimpleNamespace(
+                    id=1,
+                    provider="voicelink",
                     is_default_outbound=True,
                     credentials={"did_number": "919484959244"},
                 )
@@ -156,9 +159,7 @@ def test_list_clients_excludes_caller_and_reports_voicelink_state():
 
     assert response.status_code == 200
     db.list_organizations_with_users.assert_awaited_once_with(exclude_user_id=1)
-    db.list_telephony_configurations_by_provider.assert_awaited_once_with(
-        5, "voicelink"
-    )
+    db.list_telephony_configurations.assert_awaited_once_with(5)
 
     [item] = response.json()["clients"]
     assert item["organization_id"] == 5
@@ -172,6 +173,8 @@ def test_list_clients_excludes_caller_and_reports_voicelink_state():
     assert item["did_number"] == "919484959244"
     # Reseller creds unset in this test → live status cannot be checked.
     assert item["live_state"] == "unconfigured"
+    assert item["telephony_providers"] == ["voicelink"]
+    assert item["telephony_status"] == "active"
 
 
 def test_list_clients_handles_org_without_config_or_users():
@@ -187,7 +190,8 @@ def test_list_clients_handles_org_without_config_or_users():
         ),
     ):
         db.list_organizations_with_users = AsyncMock(return_value=[org])
-        db.list_telephony_configurations_by_provider = AsyncMock(return_value=[])
+        db.get_configuration = AsyncMock(return_value=None)
+        db.list_telephony_configurations = AsyncMock(return_value=[])
 
         response = client.get("/admin/clients")
 
@@ -195,6 +199,8 @@ def test_list_clients_handles_org_without_config_or_users():
     assert item["owner_email"] is None
     assert item["has_voicelink_config"] is False
     assert item["did_number"] is None
+    assert item["telephony_providers"] == []
+    assert item["telephony_status"] == "unconfigured"
 
 
 # ======== RETRY PROVISION ========
@@ -410,7 +416,8 @@ def test_list_reports_active_and_autoheals_when_client_exists():
         ),
     ):
         db.list_organizations_with_users = AsyncMock(return_value=[org])
-        db.list_telephony_configurations_by_provider = AsyncMock(return_value=[])
+        db.get_configuration = AsyncMock(return_value=None)
+        db.list_telephony_configurations = AsyncMock(return_value=[])
         db.update_organization_voicelink = AsyncMock()
 
         response = client.get("/admin/clients")
@@ -445,7 +452,8 @@ def test_list_reports_missing_when_not_in_voicelink():
         ),
     ):
         db.list_organizations_with_users = AsyncMock(return_value=[org])
-        db.list_telephony_configurations_by_provider = AsyncMock(return_value=[])
+        db.get_configuration = AsyncMock(return_value=None)
+        db.list_telephony_configurations = AsyncMock(return_value=[])
         db.update_organization_voicelink = AsyncMock()
 
         response = client.get("/admin/clients")
@@ -472,7 +480,8 @@ def test_list_reports_unknown_when_reseller_call_fails():
         ),
     ):
         db.list_organizations_with_users = AsyncMock(return_value=[org])
-        db.list_telephony_configurations_by_provider = AsyncMock(return_value=[])
+        db.get_configuration = AsyncMock(return_value=None)
+        db.list_telephony_configurations = AsyncMock(return_value=[])
 
         response = client.get("/admin/clients")
 
@@ -758,3 +767,191 @@ def test_record_password_404_for_unknown_org():
         )
 
     assert response.status_code == 404
+
+
+def test_toggle_client_lock_success():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    with (
+        patch("api.routes.admin_clients.db_client") as db,
+        patch("api.routes.admin_clients.record_admin_action", new=AsyncMock()),
+    ):
+        db.get_organization_by_id = AsyncMock(return_value=_org(id=42))
+        db.upsert_configuration = AsyncMock()
+
+        response = client.post(
+            "/admin/clients/42/lock", json={"is_locked": False}
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["organization_id"] == 42
+    assert body["is_locked"] is False
+    assert "unlocked" in body["message"]
+    db.upsert_configuration.assert_awaited_once()
+
+
+def test_toggle_client_lock_404_when_org_not_found():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    with patch("api.routes.admin_clients.db_client") as db:
+        db.get_organization_by_id = AsyncMock(return_value=None)
+        db.upsert_configuration = AsyncMock()
+
+        response = client.post(
+            "/admin/clients/999/lock", json={"is_locked": True}
+        )
+
+    assert response.status_code == 404
+    db.upsert_configuration.assert_not_awaited()
+
+
+def test_list_clients_configuration_status_active():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    org = _org(id=5)
+    with (
+        patch("api.routes.admin_clients.db_client") as db,
+        patch(
+            "api.routes.admin_clients.get_voicelink_clients_client",
+            return_value=_reseller(is_configured=False),
+        ),
+        patch(
+            "api.routes.admin_clients.get_organization_ai_model_configuration_v2_state",
+            new=AsyncMock(
+                return_value=SimpleNamespace(
+                    configuration=SimpleNamespace(
+                        mode="byok",
+                        byok=SimpleNamespace(pipeline={"llm": "openai"}, realtime=None),
+                    ),
+                    raw={"mode": "byok"},
+                    validation_error=None,
+                )
+            ),
+        ),
+    ):
+        db.list_organizations_with_users = AsyncMock(return_value=[org])
+        db.get_configuration = AsyncMock(return_value=None)
+        db.list_telephony_configurations = AsyncMock(return_value=[])
+
+        response = client.get("/admin/clients")
+
+    assert response.status_code == 200
+    [item] = response.json()["clients"]
+    assert item["configuration_status"] == "active"
+    assert item["configuration_error"] is None
+
+
+def test_list_clients_configuration_status_unconfigured_when_default_dograh():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    org = _org(id=5)
+    with (
+        patch("api.routes.admin_clients.db_client") as db,
+        patch(
+            "api.routes.admin_clients.get_voicelink_clients_client",
+            return_value=_reseller(is_configured=False),
+        ),
+        patch(
+            "api.routes.admin_clients.get_organization_ai_model_configuration_v2_state",
+            new=AsyncMock(
+                return_value=SimpleNamespace(
+                    configuration=SimpleNamespace(mode="dograh", byok=None),
+                    raw={"mode": "dograh"},
+                    validation_error=None,
+                )
+            ),
+        ),
+    ):
+        db.list_organizations_with_users = AsyncMock(return_value=[org])
+        db.get_configuration = AsyncMock(return_value=None)
+        db.list_telephony_configurations = AsyncMock(return_value=[])
+
+        response = client.get("/admin/clients")
+
+    assert response.status_code == 200
+    [item] = response.json()["clients"]
+    assert item["configuration_status"] == "unconfigured"
+    assert item["configuration_error"] is None
+
+
+def test_list_clients_configuration_status_error():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    org = _org(id=5)
+    with (
+        patch("api.routes.admin_clients.db_client") as db,
+        patch(
+            "api.routes.admin_clients.get_voicelink_clients_client",
+            return_value=_reseller(is_configured=False),
+        ),
+        patch(
+            "api.routes.admin_clients.get_organization_ai_model_configuration_v2_state",
+            new=AsyncMock(
+                return_value=SimpleNamespace(
+                    configuration=None,
+                    raw={"invalid": "payload"},
+                    validation_error="Field required: llm.provider",
+                )
+            ),
+        ),
+    ):
+        db.list_organizations_with_users = AsyncMock(return_value=[org])
+        db.get_configuration = AsyncMock(return_value=None)
+        db.list_telephony_configurations = AsyncMock(return_value=[])
+
+        response = client.get("/admin/clients")
+
+    assert response.status_code == 200
+    [item] = response.json()["clients"]
+    assert item["configuration_status"] == "error"
+    assert item["configuration_error"] == "Field required: llm.provider"
+
+
+def test_list_clients_multiple_telephony_providers():
+    app = _make_test_app()
+    client = TestClient(app)
+
+    org = _org(id=5, voicelink_error=None)
+    with (
+        patch("api.routes.admin_clients.db_client") as db,
+        patch(
+            "api.routes.admin_clients.get_voicelink_clients_client",
+            return_value=_reseller(is_configured=False),
+        ),
+    ):
+        db.list_organizations_with_users = AsyncMock(return_value=[org])
+        db.get_configuration = AsyncMock(return_value=None)
+        db.list_telephony_configurations = AsyncMock(
+            return_value=[
+                SimpleNamespace(
+                    id=1,
+                    provider="twilio",
+                    is_default_outbound=True,
+                    credentials={"phone_number": "+14155552671"},
+                ),
+                SimpleNamespace(
+                    id=2,
+                    provider="telnyx",
+                    is_default_outbound=False,
+                    credentials={"from_number": "+14155559999"},
+                ),
+            ]
+        )
+
+        response = client.get("/admin/clients")
+
+    assert response.status_code == 200
+    [item] = response.json()["clients"]
+    assert item["telephony_providers"] == ["twilio", "telnyx"]
+    assert item["telephony_status"] == "active"
+    assert item["telephony_count"] == 2
+    assert item["did_number"] == "+14155552671"
+
+
+

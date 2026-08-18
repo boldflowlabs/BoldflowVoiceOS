@@ -14,8 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 
 // Providers that have MPS voice endpoints
-type TTSProviderWithVoices = "elevenlabs" | "deepgram" | "sarvam" | "cartesia" | "dograh" | "rime";
-const MPS_VOICE_PROVIDERS: TTSProviderWithVoices[] = ["elevenlabs", "deepgram", "sarvam", "cartesia", "dograh", "rime"];
+type TTSProviderWithVoices = "elevenlabs" | "deepgram" | "sarvam" | "cartesia" | "dograh" | "rime" | "rumik";
+const MPS_VOICE_PROVIDERS: TTSProviderWithVoices[] = ["elevenlabs", "deepgram", "sarvam", "cartesia", "dograh", "rime", "rumik"];
 const ALL_FILTER_VALUE = "__all__";
 
 interface VoiceSelectorProps {
@@ -66,6 +66,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
             cartesia: "cartesia",
             dograh: "dograh",
             rime: "rime",
+            rumik: "rumik",
         };
         return providerMap[providerName.toLowerCase()] || null;
     }, []);

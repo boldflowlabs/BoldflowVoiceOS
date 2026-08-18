@@ -32,6 +32,11 @@ from api.services.configuration.options import (
     GOOGLE_VERTEX_REALTIME_LANGUAGES,
     GOOGLE_VERTEX_REALTIME_MODELS,
     GOOGLE_VERTEX_REALTIME_VOICES,
+    RUMIK_TTS_DEFAULT_DESCRIPTION,
+    RUMIK_TTS_DEFAULT_GATEWAY_URL,
+    RUMIK_TTS_LANGUAGES,
+    RUMIK_TTS_MODELS,
+    RUMIK_TTS_VOICES,
     SARVAM_LANGUAGES,
     SARVAM_LLM_MODELS,
     SARVAM_STT_LANGUAGES_V3,
@@ -88,6 +93,7 @@ class ServiceProviders(str, Enum):
     GOOGLE_VERTEX_REALTIME = "google_vertex_realtime"
     AZURE_REALTIME = "azure_realtime"
     SMALLEST = "smallest"
+    RUMIK = "rumik"
 
 
 class BaseServiceConfiguration(BaseModel):
@@ -118,6 +124,7 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.AZURE_REALTIME,
         ServiceProviders.SARVAM,
         ServiceProviders.SMALLEST,
+        ServiceProviders.RUMIK,
     ]
     api_key: str | list[str]
 
@@ -267,6 +274,14 @@ GOOGLE_CLOUD_PROVIDER_MODEL_CONFIG = provider_model_config("Google Cloud")
 SPEECHMATICS_PROVIDER_MODEL_CONFIG = provider_model_config("Speechmatics")
 ASSEMBLYAI_PROVIDER_MODEL_CONFIG = provider_model_config("AssemblyAI")
 GLADIA_PROVIDER_MODEL_CONFIG = provider_model_config("Gladia")
+RUMIK_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "Rumik",
+    description=(
+        "Rumik AI streaming text-to-speech for Hindi, English, and Hinglish. "
+        "Supports Silk Mulberry 1.5 (fast, description-driven) and Silk Muga 1 (expressive tone tags)."
+    ),
+    provider_docs_url="https://docs.rumik.ai",
+)
 SPEACHES_PROVIDER_MODEL_CONFIG = provider_model_config(
     "Local Models (Speaches)",
     description=(
@@ -1274,6 +1289,67 @@ class SmallestAITTSConfiguration(BaseTTSConfiguration):
     )
 
 
+@register_tts
+class RumikTTSConfiguration(BaseTTSConfiguration):
+    model_config = RUMIK_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.RUMIK] = ServiceProviders.RUMIK
+    model: str = Field(
+        default="mulberry",
+        description="Rumik TTS model ('mulberry' for fast description-driven synthesis or 'muga' for expressive tone-steered synthesis).",
+        json_schema_extra={
+            "examples": list(RUMIK_TTS_MODELS),
+            "allow_custom_input": True,
+        },
+    )
+    voice: str = Field(
+        default="ira",
+        description="Rumik preset voice / speaker name (e.g. 'ira', 'siya', 'emma', 'lucas').",
+        json_schema_extra={
+            "examples": list(RUMIK_TTS_VOICES),
+            "allow_custom_input": True,
+        },
+    )
+    description: str = Field(
+        default=RUMIK_TTS_DEFAULT_DESCRIPTION,
+        description="Expressive voice description (required for mulberry; builds the voice style/tone).",
+        json_schema_extra={"multiline": True},
+    )
+    gateway_url: str = Field(
+        default=RUMIK_TTS_DEFAULT_GATEWAY_URL,
+        description="Rumik AI gateway URL endpoint.",
+    )
+    temperature: float = Field(
+        default=0.6,
+        ge=0.0,
+        le=1.5,
+        description="Sampling temperature (0.7 recommended for muga).",
+    )
+    top_p: float = Field(
+        default=0.95,
+        ge=0.0,
+        le=1.0,
+        description="Nucleus sampling value.",
+    )
+    top_k: int = Field(
+        default=50,
+        ge=1,
+        le=200,
+        description="Top-k sampling value.",
+    )
+    repetition_penalty: float = Field(
+        default=1.2,
+        ge=0.5,
+        le=2.0,
+        description="Penalty for repeated tokens.",
+    )
+    max_new_tokens: int = Field(
+        default=2048,
+        ge=256,
+        le=8192,
+        description="Output length cap.",
+    )
+
+
 TTSConfig = Annotated[
     Union[
         DeepgramTTSConfiguration,
@@ -1290,6 +1366,7 @@ TTSConfig = Annotated[
         MiniMaxTTSConfiguration,
         AzureSpeechTTSConfiguration,
         SmallestAITTSConfiguration,
+        RumikTTSConfiguration,
     ],
     Field(discriminator="provider"),
 ]

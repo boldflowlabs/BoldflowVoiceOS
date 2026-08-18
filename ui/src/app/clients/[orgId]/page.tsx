@@ -9,6 +9,7 @@ import {
   KeyRound,
   Loader2,
   Lock,
+  MinusCircle,
   Phone,
   Plus,
   RefreshCw,
@@ -29,7 +30,13 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { KycStatusBadge, PlanBadge, SuspendedBadge } from "@/components/admin/AdminBadges";
+import {
+  ConfigurationStatusBadge,
+  KycStatusBadge,
+  PlanBadge,
+  SuspendedBadge,
+  TelephonyStatusBadge,
+} from "@/components/admin/AdminBadges";
 import {
   formatCredits,
   formatInr,
@@ -93,6 +100,7 @@ import {
   chargeSetupFee,
   type ClientPasswordResult,
   createClientForOrg,
+  deductCreditsFromClient,
   getAdminClientDetail,
   getClientKycStatus,
   getClientPassword,
@@ -157,6 +165,11 @@ export default function ClientDetailPage() {
   // Grant credits dialog
   const [grantOpen, setGrantOpen] = useState(false);
   const [grantMinutes, setGrantMinutes] = useState("");
+
+  // Deduct credits dialog
+  const [deductOpen, setDeductOpen] = useState(false);
+  const [deductMinutes, setDeductMinutes] = useState("");
+  const [deductReason, setDeductReason] = useState("");
 
   // Pricing form
   const [perMinute, setPerMinute] = useState("");
@@ -310,6 +323,15 @@ export default function ClientDetailPage() {
     }
   };
 
+  // Derived state -------------------------------------------------------------
+  const money = detail?.money;
+  const moneyUnlimited =
+    money?.unlimited === true || money?.money_left_inr === null;
+  const planOverridden = detail?.plan_override != null;
+  const vlStatus = detail?.voicelink?.status ?? null;
+  const vlActive = vlStatus === "provisioned" || vlStatus === "active";
+  const notes = detail?.notes ?? [];
+
   // Mutations -----------------------------------------------------------------
   const grantMinutesNumber = Number(grantMinutes);
   const grantMinutesValid =
@@ -331,6 +353,41 @@ export default function ClientDetailPage() {
       await fetchAll();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to grant credits");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const deductMinutesNumber = Number(deductMinutes);
+  const deductMaxMinutes = money?.balance_seconds
+    ? Math.floor(money.balance_seconds / 60)
+    : 0;
+  const deductMinutesValid =
+    Number.isInteger(deductMinutesNumber) &&
+    deductMinutesNumber >= 1 &&
+    deductMinutesNumber <= 100000 &&
+    deductMinutesNumber <= deductMaxMinutes;
+
+  const onDeductCredits = async () => {
+    if (!deductMinutesValid) return;
+    setSubmitting(true);
+    try {
+      const token = await getToken();
+      const result = await deductCreditsFromClient(
+        token,
+        orgId,
+        deductMinutesNumber,
+        deductReason.trim() || undefined,
+      );
+      toast.success(
+        `Deducted ${deductMinutesNumber} minute${deductMinutesNumber === 1 ? "" : "s"} — balance is now ${formatCredits(result.credits_seconds_remaining)}`,
+      );
+      setDeductOpen(false);
+      setDeductMinutes("");
+      setDeductReason("");
+      await fetchAll();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to deduct credits");
     } finally {
       setSubmitting(false);
     }
@@ -625,13 +682,6 @@ export default function ClientDetailPage() {
   };
 
   // Render --------------------------------------------------------------------
-  const money = detail?.money;
-  const moneyUnlimited = money?.unlimited === true || money?.money_left_inr === null;
-  const planOverridden = detail?.plan_override != null;
-  const vlStatus = detail?.voicelink?.status ?? null;
-  const vlActive = vlStatus === "provisioned" || vlStatus === "active";
-  const notes = detail?.notes ?? [];
-
   return (
     <div className="min-h-screen bg-background">
       <div className="stagger container mx-auto max-w-5xl px-4 py-10">
@@ -671,6 +721,15 @@ export default function ClientDetailPage() {
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <PlanBadge plan={detail.plan} overridden={planOverridden} />
                   <SuspendedBadge suspended={detail.suspended} />
+                  <TelephonyStatusBadge
+                    providers={detail.telephony_providers}
+                    status={detail.telephony_status}
+                    voicelinkStatus={detail.voicelink?.status}
+                  />
+                  <ConfigurationStatusBadge
+                    status={detail.configuration_status}
+                    error={detail.configuration_error}
+                  />
                   {detail.is_locked === false ? (
                     <Badge className="bg-emerald-600 hover:bg-emerald-600 flex items-center gap-1 text-xs">
                       <Unlock className="h-3 w-3" /> Unlocked (Editing Allowed)
@@ -955,15 +1014,30 @@ export default function ClientDetailPage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <Button
-                        onClick={() => {
-                          setGrantMinutes("");
-                          setGrantOpen(true);
-                        }}
-                        disabled={moneyUnlimited}
-                      >
-                        <Coins className="mr-2 h-4 w-4" /> Grant credits
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          onClick={() => {
+                            setGrantMinutes("");
+                            setGrantOpen(true);
+                          }}
+                          disabled={moneyUnlimited}
+                        >
+                          <Coins className="mr-2 h-4 w-4" /> Grant credits
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setDeductMinutes("");
+                            setDeductReason("");
+                            setDeductOpen(true);
+                          }}
+                          disabled={
+                            moneyUnlimited || (money?.balance_seconds || 0) <= 0
+                          }
+                        >
+                          <MinusCircle className="mr-2 h-4 w-4 text-rose-500" /> Deduct credits
+                        </Button>
+                      </div>
                       {moneyUnlimited && (
                         <p className="mt-2 text-xs text-muted-foreground">
                           This org is unmetered — granting credits would start
@@ -1391,6 +1465,63 @@ export default function ClientDetailPage() {
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Grant
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deduct credits dialog */}
+      <Dialog open={deductOpen} onOpenChange={setDeductOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deduct credits</DialogTitle>
+            <DialogDescription>
+              Deducts call credits from {detail?.owner_email ?? "this organization"} (1 credit = 1 minute).
+              Current balance: {formatCredits(money?.balance_seconds)}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="detail-deduct-minutes">Minutes to deduct</Label>
+              <Input
+                id="detail-deduct-minutes"
+                type="number"
+                min={1}
+                max={deductMaxMinutes > 0 ? deductMaxMinutes : 1}
+                step={1}
+                value={deductMinutes}
+                onChange={(e) => setDeductMinutes(e.target.value)}
+                placeholder={deductMaxMinutes > 0 ? `Max: ${deductMaxMinutes}` : "0"}
+              />
+              <p className="text-xs text-muted-foreground">
+                Available to deduct: {deductMaxMinutes} minute(s).
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="detail-deduct-reason">Reason / Note (optional)</Label>
+              <Input
+                id="detail-deduct-reason"
+                value={deductReason}
+                onChange={(e) => setDeductReason(e.target.value)}
+                placeholder="e.g. Plan downgrade, usage adjustment"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeductOpen(false)}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={onDeductCredits}
+              disabled={submitting || !deductMinutesValid}
+            >
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Deduct
             </Button>
           </DialogFooter>
         </DialogContent>

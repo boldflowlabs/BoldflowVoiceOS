@@ -12,8 +12,8 @@ const highlights = [
   },
   {
     icon: ShieldCheck,
-    title: "Secure PayU checkout",
-    description: "Top up through PayU's PCI-compliant payment gateway.",
+    title: "Secure online checkout",
+    description: "Top up instantly through our PCI-compliant payment gateway.",
   },
   {
     icon: Activity,
@@ -29,7 +29,7 @@ export default function CreditsPage() {
         icon={Wallet}
         eyebrow="Billing"
         title="Credits & Billing"
-        subtitle="Track your plan, monitor remaining call credits, and top up in seconds with secure payments via PayU."
+        subtitle="Track your plan, monitor remaining call credits, and top up in seconds with secure online payments."
         highlights={highlights}
       />
 

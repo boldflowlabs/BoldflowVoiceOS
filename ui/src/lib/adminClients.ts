@@ -42,6 +42,11 @@ export interface AdminClient {
   per_minute_inr?: number | null;
   suspended?: boolean;
   is_locked?: boolean;
+  configuration_status?: string | null;
+  configuration_error?: string | null;
+  telephony_providers?: string[];
+  telephony_status?: string | null;
+  telephony_count?: number;
 }
 
 // The five sellable plans, in ascending order, for the plan selectors.
@@ -106,6 +111,11 @@ export interface AdminClientDetail {
   money?: AdminClientMoney | null;
   suspended?: boolean;
   is_locked?: boolean;
+  configuration_status?: string | null;
+  configuration_error?: string | null;
+  telephony_providers?: string[];
+  telephony_status?: string | null;
+  telephony_count?: number;
   notes?: AdminClientNote[] | null;
   voicelink?: AdminClientVoiceLink | null;
   kyc?: AdminClientKycStatus | null;
@@ -193,6 +203,12 @@ export interface GrantCreditsResult {
   organization_id: number;
   granted_seconds: number;
   credits_seconds_remaining?: number | null;
+}
+
+export interface DeductCreditsResult {
+  organization_id: number;
+  deducted_seconds: number;
+  credits_seconds_remaining: number;
 }
 
 // Backend detail string for GET /password when no display copy is stored
@@ -320,6 +336,17 @@ export const grantCreditsToClient = (
   adminFetch<GrantCreditsResult>(token, `/${organizationId}/grant-credits`, {
     method: "POST",
     body: JSON.stringify({ minutes }),
+  });
+
+export const deductCreditsFromClient = (
+  token: string,
+  organizationId: number,
+  minutes: number,
+  reason?: string,
+) =>
+  adminFetch<DeductCreditsResult>(token, `/${organizationId}/deduct-credits`, {
+    method: "POST",
+    body: JSON.stringify({ minutes, ...(reason ? { reason } : {}) }),
   });
 
 export const getClientKycStatus = (token: string, organizationId: number) =>

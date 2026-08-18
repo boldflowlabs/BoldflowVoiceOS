@@ -405,7 +405,7 @@ async def reactivate_api_key(
 
 
 # Voice Configuration Endpoints
-TTSProvider = Literal["elevenlabs", "deepgram", "sarvam", "cartesia", "dograh", "rime"]
+TTSProvider = Literal["elevenlabs", "deepgram", "sarvam", "cartesia", "dograh", "rime", "rumik"]
 
 
 class VoiceInfo(BaseModel):
@@ -488,6 +488,31 @@ async def get_voices(
     user: UserModel = Depends(get_user),
 ) -> VoicesResponse:
     """Get available voices for a TTS provider."""
+    if provider == "rumik":
+        from api.services.configuration.options import RUMIK_VOICE_CATALOG
+
+        filtered = list(RUMIK_VOICE_CATALOG)
+        if gender:
+            filtered = [v for v in filtered if v.get("gender", "").lower() == gender.lower()]
+        if accent:
+            filtered = [v for v in filtered if v.get("accent", "").lower() == accent.lower()]
+        if q:
+            ql = q.lower()
+            filtered = [
+                v for v in filtered
+                if ql in v.get("name", "").lower()
+                or ql in v.get("voice_id", "").lower()
+                or ql in v.get("description", "").lower()
+            ]
+        genders = sorted(list({v["gender"] for v in RUMIK_VOICE_CATALOG if v.get("gender")}))
+        accents = sorted(list({v["accent"] for v in RUMIK_VOICE_CATALOG if v.get("accent")}))
+        languages = sorted(list({v["language"] for v in RUMIK_VOICE_CATALOG if v.get("language")}))
+        return VoicesResponse(
+            provider="rumik",
+            voices=[VoiceInfo(**voice) for voice in filtered],
+            facets=VoiceFacets(genders=genders, accents=accents, languages=languages),
+        )
+
     try:
         result = await mps_service_key_client.get_voices(
             provider=provider,

@@ -3,31 +3,33 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useRef, useState } from "react";
 
 import { EnterpriseModal } from "@/components/lead-forms/EnterpriseModal";
-import { HireExpertModal } from "@/components/lead-forms/HireExpertModal";
+import { SupportModal } from "@/components/lead-forms/SupportModal";
 import type { LeadSource } from "@/components/lead-forms/leadFieldOptions";
 
 interface LeadFormsContextValue {
+  openSupport: (source: LeadSource) => void;
   openHireExpert: (source: LeadSource) => void;
   openEnterprise: (source: LeadSource, prefill?: { company?: string }) => void;
-  // True once the hire modal has been opened this session (used to suppress the builder nudge).
+  // True once the support modal has been opened this session (used to suppress the builder nudge).
+  hasOpenedSupportRef: React.MutableRefObject<boolean>;
   hasOpenedHireRef: React.MutableRefObject<boolean>;
 }
 
 const LeadFormsContext = createContext<LeadFormsContextValue | null>(null);
 
 export function LeadFormsProvider({ children }: { children: ReactNode }) {
-  const [hireOpen, setHireOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const [enterpriseOpen, setEnterpriseOpen] = useState(false);
   // Track the originating source so the *_OPENED and submit events agree.
-  const [hireSource, setHireSource] = useState<LeadSource>("sidebar");
+  const [supportSource, setSupportSource] = useState<LeadSource>("sidebar");
   const [enterpriseSource, setEnterpriseSource] = useState<LeadSource>("sidebar");
   const [enterprisePrefill, setEnterprisePrefill] = useState<{ company?: string } | undefined>(undefined);
-  const hasOpenedHireRef = useRef(false);
+  const hasOpenedSupportRef = useRef(false);
 
-  const openHireExpert = useCallback((source: LeadSource) => {
-    hasOpenedHireRef.current = true;
-    setHireSource(source);
-    setHireOpen(true);
+  const openSupport = useCallback((source: LeadSource) => {
+    hasOpenedSupportRef.current = true;
+    setSupportSource(source);
+    setSupportOpen(true);
   }, []);
 
   const openEnterprise = useCallback((source: LeadSource, prefill?: { company?: string }) => {
@@ -38,21 +40,23 @@ export function LeadFormsProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<LeadFormsContextValue>(
     () => ({
-      openHireExpert,
+      openSupport,
+      openHireExpert: openSupport, // backward compatibility
       openEnterprise,
-      hasOpenedHireRef,
+      hasOpenedSupportRef,
+      hasOpenedHireRef: hasOpenedSupportRef, // backward compatibility
     }),
-    [openHireExpert, openEnterprise]
+    [openSupport, openEnterprise]
   );
 
   return (
     <LeadFormsContext.Provider value={value}>
       {children}
-      <HireExpertModal
-        open={hireOpen}
-        onOpenChange={setHireOpen}
-        source={hireSource}
-        onOpenEnterprise={() => openEnterprise("hire_expert")}
+      <SupportModal
+        open={supportOpen}
+        onOpenChange={setSupportOpen}
+        source={supportSource}
+        onOpenEnterprise={() => openEnterprise("support")}
       />
       <EnterpriseModal
         open={enterpriseOpen}
@@ -67,10 +71,13 @@ export function LeadFormsProvider({ children }: { children: ReactNode }) {
 export function useLeadForms(): LeadFormsContextValue {
   const ctx = useContext(LeadFormsContext);
   if (!ctx) {
+    const dummyRef = { current: false };
     return {
+      openSupport: () => {},
       openHireExpert: () => {},
       openEnterprise: () => {},
-      hasOpenedHireRef: { current: false },
+      hasOpenedSupportRef: dummyRef,
+      hasOpenedHireRef: dummyRef,
     };
   }
   return ctx;

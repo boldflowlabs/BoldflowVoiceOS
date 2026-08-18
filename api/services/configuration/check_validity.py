@@ -64,6 +64,7 @@ class UserConfigurationValidator:
             ServiceProviders.RIME.value: self._check_rime_api_key,
             ServiceProviders.MINIMAX.value: self._check_minimax_api_key,
             ServiceProviders.SMALLEST.value: self._check_smallest_api_key,
+            ServiceProviders.RUMIK.value: self._check_rumik_api_key,
         }
 
     async def validate(
@@ -430,4 +431,7 @@ class UserConfigurationValidator:
         return True
 
     def _check_smallest_api_key(self, model: str, api_key: str) -> bool:
+        return True
+
+    def _check_rumik_api_key(self, model: str, api_key: str) -> bool:
         return True

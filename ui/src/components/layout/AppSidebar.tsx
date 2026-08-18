@@ -15,6 +15,7 @@ import {
   Database,
   Home,
   Key,
+  LifeBuoy,
   Lock,
   LogOut,
   type LucideIcon,
@@ -25,7 +26,6 @@ import {
   PhoneIncoming,
   Settings,
   Sparkles,
-  UserRound,
   Users,
   Workflow,
   Wrench,
@@ -244,7 +244,7 @@ export function AppSidebar() {
   const { provider, getSelectedTeam, logout, user } = useAuth();
   const { isAdmin } = useIsAdmin();
   const { isSuperuser, planFeatures } = useUserConfig();
-  const { openHireExpert } = useLeadForms();
+  const { openSupport } = useLeadForms();
   const { telnyxMissingWebhookPublicKeyCount } = useTelephonyConfigWarnings();
   const hasTelephonyWarning = telnyxMissingWebhookPublicKeyCount > 0;
   const isCollapsed = !isMobile && state === "collapsed";
@@ -394,32 +394,32 @@ export function AppSidebar() {
     </Button>
   );
 
-  // "Hire an Expert" CTA, rendered INSIDE the shared footer pill next to the
+  // "Support" CTA, rendered INSIDE the shared footer pill next to the
   // profile icon. Expanded: label pill filling the row. Collapsed: icon-only.
-  const hireExpertButton = isCollapsed ? (
+  const supportButton = isCollapsed ? (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           size="icon"
           className="h-7 w-7 rounded-full"
-          onClick={() => openHireExpert("sidebar")}
-          aria-label="Hire an Expert"
+          onClick={() => openSupport("sidebar")}
+          aria-label="Support"
         >
-          <UserRound className="h-3.5 w-3.5" />
+          <LifeBuoy className="h-3.5 w-3.5" />
         </Button>
       </TooltipTrigger>
       <TooltipContent side="right">
-        <p>Hire an Expert</p>
+        <p>Support</p>
       </TooltipContent>
     </Tooltip>
   ) : (
     <Button
       size="sm"
       className="h-7 gap-1.5 rounded-full px-3 text-xs"
-      onClick={() => openHireExpert("sidebar")}
+      onClick={() => openSupport("sidebar")}
     >
-      <UserRound className="h-3.5 w-3.5" />
-      Hire an Expert
+      <LifeBuoy className="h-3.5 w-3.5" />
+      Support
     </Button>
   );
 
@@ -584,7 +584,7 @@ export function AppSidebar() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {hireExpertButton}
+              {supportButton}
             </div>
           )}
 
@@ -631,7 +631,7 @@ export function AppSidebar() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {hireExpertButton}
+              {supportButton}
             </div>
           )}
 

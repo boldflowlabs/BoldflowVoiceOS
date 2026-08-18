@@ -1,6 +1,6 @@
 "use client";
 
-import { UserRound, X } from "lucide-react";
+import { LifeBuoy, X } from "lucide-react";
 import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 
@@ -20,7 +20,7 @@ function nudgeDoneKey(workflowId: number) {
 }
 
 export function HireExpertNudge({ workflowId }: HireExpertNudgeProps) {
-  const { openHireExpert, hasOpenedHireRef } = useLeadForms();
+  const { openSupport, hasOpenedSupportRef } = useLeadForms();
   const [visible, setVisible] = useState(false);
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -31,7 +31,7 @@ export function HireExpertNudge({ workflowId }: HireExpertNudgeProps) {
     if (localStorage.getItem(nudgeDoneKey(workflowId))) return;
 
     const showTimer = setTimeout(() => {
-      if (hasOpenedHireRef.current) return; // they engaged elsewhere; don't nag
+      if (hasOpenedSupportRef.current) return; // they engaged elsewhere; don't nag
       if (localStorage.getItem(nudgeDoneKey(workflowId))) return;
       setVisible(true);
       posthog.capture(PostHogEvent.HIRE_NUDGE_SHOWN, { workflowId });
@@ -46,7 +46,7 @@ export function HireExpertNudge({ workflowId }: HireExpertNudgeProps) {
       clearTimeout(showTimer);
       if (fadeTimer.current) clearTimeout(fadeTimer.current);
     };
-  }, [workflowId, hasOpenedHireRef]);
+  }, [workflowId, hasOpenedSupportRef]);
 
   if (!visible) return null;
 
@@ -59,7 +59,7 @@ export function HireExpertNudge({ workflowId }: HireExpertNudgeProps) {
   const handleClick = () => {
     posthog.capture(PostHogEvent.HIRE_NUDGE_CLICKED, { workflowId });
     markDone();
-    openHireExpert("builder_nudge");
+    openSupport("builder_nudge");
   };
 
   const handleDismiss = () => {
@@ -74,10 +74,10 @@ export function HireExpertNudge({ workflowId }: HireExpertNudgeProps) {
       className="fixed bottom-6 right-6 z-50 flex max-w-xs items-center gap-3 rounded-lg border border-primary bg-background p-3 shadow-lg animate-in fade-in slide-in-from-bottom-2"
     >
       <button type="button" onClick={handleClick} className="flex flex-1 items-center gap-3 text-left">
-        <UserRound className="h-5 w-5 shrink-0 text-primary" />
+        <LifeBuoy className="h-5 w-5 shrink-0 text-primary" />
         <span>
-          <span className="block text-sm font-semibold">Hire an Expert</span>
-          <span className="block text-xs text-muted-foreground">We&apos;ll build your agent for you</span>
+          <span className="block text-sm font-semibold">Need Support?</span>
+          <span className="block text-xs text-muted-foreground">We&apos;re here to help with your agent</span>
         </span>
       </button>
       <button
@@ -91,3 +91,6 @@ export function HireExpertNudge({ workflowId }: HireExpertNudgeProps) {
     </div>
   );
 }
+
+export { HireExpertNudge as SupportNudge };
+
