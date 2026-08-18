@@ -9,7 +9,7 @@ const Card = React.forwardRef<
     <div
         ref={ref}
         className={cn(
-            "card-weave rounded-2xl border border-border/60 bg-card text-card-foreground shadow-[var(--shadow-card)] transition-[box-shadow,transform,border-color] duration-200 ease-[var(--ease-out)] dark:shadow-[var(--shadow-inset-top)]",
+            "rounded-xl border border-border bg-card text-card-foreground shadow-xs transition-shadow duration-150",
             className
         )}
         {...props}
@@ -23,7 +23,7 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <div
         ref={ref}
-        className={cn("flex flex-col space-y-1.5 p-6", className)}
+        className={cn("flex flex-col space-y-1.5 p-5", className)}
         {...props}
     />
 ))
@@ -36,7 +36,7 @@ const CardTitle = React.forwardRef<
     <h3
         ref={ref}
         className={cn(
-            "text-[17px] font-semibold leading-snug tracking-[-0.01em]",
+            "text-base font-semibold leading-none tracking-tight text-foreground",
             className
         )}
         {...props}
@@ -50,7 +50,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <p
         ref={ref}
-        className={cn("text-[13px] leading-relaxed text-muted-foreground", className)}
+        className={cn("text-xs leading-relaxed text-muted-foreground", className)}
         {...props}
     />
 ))
@@ -60,7 +60,7 @@ const CardContent = React.forwardRef<
     HTMLDivElement,
     React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+    <div ref={ref} className={cn("p-5 pt-0", className)} {...props} />
 ))
 CardContent.displayName = "CardContent"
 
@@ -70,10 +70,10 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <div
         ref={ref}
-        className={cn("flex items-center p-6 pt-0", className)}
+        className={cn("flex items-center p-5 pt-0", className)}
         {...props}
     />
 ))
 CardFooter.displayName = "CardFooter"
 
-export { Card, CardContent,CardDescription, CardFooter, CardHeader, CardTitle }
+export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }

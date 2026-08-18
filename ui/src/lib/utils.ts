@@ -2,7 +2,6 @@ import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 import { getAuthUserApiV1UserAuthUserGet } from "@/client/sdk.gen";
-import { getWorkflowCountApiV1WorkflowCountGet } from "@/client/sdk.gen";
 import { impersonateApiV1SuperuserImpersonatePost } from "@/client/sdk.gen";
 
 export function cn(...inputs: ClassValue[]) {
@@ -70,33 +69,8 @@ export async function getRedirectUrl(token: string, permissions: { id: string }[
     return "/usage";
   }
 
-  // Check if user has any workflows
-  try {
-    console.log('[getRedirectUrl] Checking for existing workflows...');
-    const countResponse = await getWorkflowCountApiV1WorkflowCountGet({
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    console.log('[getRedirectUrl] Found workflows:', {
-      total: countResponse.data?.total,
-      active: countResponse.data?.active
-    });
-
-    if (countResponse.data && countResponse.data.active > 0) {
-      console.log('[getRedirectUrl] User has workflows, redirecting to /workflow');
-      return "/workflow";
-    } else {
-      console.log('[getRedirectUrl] No workflows found, redirecting to /workflow/create');
-      return "/workflow/create";
-    }
-  } catch (error) {
-    console.error('[getRedirectUrl] Error checking workflows:', error);
-    // If we can't check workflows, default to /workflow/create
-    console.log('[getRedirectUrl] Defaulting to /workflow/create due to error');
-    return "/workflow/create";
-  }
+  // Authenticated user default landing
+  return "/home";
   } catch (error) {
     console.error("[getRedirectUrl] Failed to fetch auth user:", error);
     // Re-throw the error so the caller can handle it

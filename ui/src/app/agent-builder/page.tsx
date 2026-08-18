@@ -51,7 +51,6 @@ import {
 import { resolveBrowserBackendUrl } from "@/lib/apiClient";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
-import { BRAND } from "@/lib/brand";
 import logger from "@/lib/logger";
 
 interface GenerateResponse {
@@ -295,41 +294,47 @@ export default function AgentBuilderPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background">
-            <div className="container mx-auto max-w-5xl px-4 py-12">
+        <div className="min-h-screen bg-background py-8 px-4">
+            <div className="container mx-auto max-w-4xl space-y-6">
                 {/* Header */}
-                <div className="mb-8">
-                    <p className="text-eyebrow text-primary">{BRAND.name}</p>
-                    <h1 className="text-h1 mt-1 flex items-center gap-2">
-                        <Sparkles className="h-7 w-7 text-cta" aria-hidden />
-                        Build an agent from a prompt
-                    </h1>
-                    <p className="text-body mt-2 text-muted-foreground">
-                        Describe your business and we&apos;ll generate a working voice-agent workflow you can refine.
-                    </p>
+                <div className="flex items-start gap-3.5">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-xs">
+                        <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <p className="text-[11px] font-semibold tracking-wider uppercase text-primary mb-1">
+                            Generative Studio
+                        </p>
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                            Build an Agent from a Prompt
+                        </h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
+                            Describe your business logic or conversational script — we synthesize the workflow graph and agent nodes automatically.
+                        </p>
+                    </div>
                 </div>
 
-                {/* Prompt */}
-                <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-card)]">
-                    <Label htmlFor="prompt" className="text-small font-medium">
-                        Your prompt
+                {/* Prompt Studio Canvas */}
+                <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+                    <Label htmlFor="prompt" className="text-xs font-semibold text-foreground">
+                        Your Conversational Prompt
                     </Label>
                     <Textarea
                         id="prompt"
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
-                        placeholder="Describe your business and what the agent should do…"
-                        className="mt-2 min-h-[140px] resize-none"
+                        placeholder="e.g. You are a real estate agent calling potential buyers who filled out an inquiry form for luxury apartments in downtown. Qualify their budget, preferred move-in date, and schedule a site visit with our senior broker..."
+                        className="mt-2.5 min-h-[140px] resize-none bg-background text-sm leading-relaxed border-border"
                         disabled={isSubmitting}
                     />
                 </div>
 
                 {/* Questionnaire */}
-                <div className="mt-6 rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-card)]">
-                    <p className="text-eyebrow text-primary">Tell us more</p>
-                    <h2 className="text-h3 mt-1">A few optional details</h2>
-                    <p className="text-body mt-1 text-muted-foreground">
-                        The more you share, the better the first draft. Everything here is optional.
+                <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+                    <p className="text-[11px] font-semibold tracking-wider uppercase text-primary mb-1">Optional Details</p>
+                    <h2 className="text-base font-semibold text-foreground">Tell us more about your use case</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        The more context you share, the better the initial synthesized draft.
                     </p>
 
                     <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -511,9 +516,9 @@ export default function AgentBuilderPage() {
                 <div className="mt-6 flex flex-col items-start gap-2">
                     <Button
                         size="lg"
+                        variant="brand"
                         onClick={handleSubmit}
                         disabled={!canSubmit}
-                        className="bg-cta text-cta-foreground hover:bg-cta/90"
                     >
                         {isSubmitting ? (
                             <>
@@ -523,7 +528,7 @@ export default function AgentBuilderPage() {
                         ) : (
                             <>
                                 <Sparkles className="mr-2 h-4 w-4" />
-                                Build my agent
+                                Synthesize Agent Workflow
                             </>
                         )}
                     </Button>

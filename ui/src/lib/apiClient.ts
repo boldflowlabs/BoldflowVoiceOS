@@ -72,4 +72,24 @@ export function setupAuthInterceptor(apiClient: Client, getAccessToken: () => Pr
         }
         return request;
     });
+
+    apiClient.interceptors.response.use(async (response) => {
+        if (response.status === 401 && typeof window !== 'undefined') {
+            const pathname = window.location.pathname;
+            if (
+                !pathname.startsWith('/auth/') &&
+                !pathname.startsWith('/handler/') &&
+                pathname !== '/login' &&
+                pathname !== '/signup'
+            ) {
+                try {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                } catch {
+                    // Ignore logout fetch error
+                }
+                window.location.href = '/auth/login';
+            }
+        }
+        return response;
+    });
 }

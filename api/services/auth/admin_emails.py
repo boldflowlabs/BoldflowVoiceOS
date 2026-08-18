@@ -37,11 +37,17 @@ async def promote_if_admin_email(
 
     No-op when the email isn't configured or the user is already a superuser.
     Mutates and returns the passed user model so callers see the new flag.
+    Also ensures superuser organizations have unlimited credits (NULL balance).
     """
-    if user.is_superuser or not is_admin_email(user.email, admin_emails):
-        return user
+    if not user.is_superuser and is_admin_email(user.email, admin_emails):
+        await db_client.update_user_superuser(user.id, True)
+        user.is_superuser = True
+        logger.info(f"Promoted user {user.id} ({user.email}) to superuser via ADMIN_EMAILS")
 
-    await db_client.update_user_superuser(user.id, True)
-    user.is_superuser = True
-    logger.info(f"Promoted user {user.id} ({user.email}) to superuser via ADMIN_EMAILS")
+    if user.is_superuser and user.selected_organization_id:
+        try:
+            await db_client.set_organization_unmetered(user.selected_organization_id)
+        except Exception as e:
+            logger.warning(f"Failed to set superuser org unmetered: {e}")
+
     return user

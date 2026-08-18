@@ -7,6 +7,8 @@
  * (same pattern as lib/kyc.ts).
  */
 
+import { resolveBrowserBackendUrl } from "@/lib/apiClient";
+
 export type VoiceLinkLiveState =
   | "active"
   | "missing"
@@ -39,6 +41,7 @@ export interface AdminClient {
   money_spent_inr?: number | null;
   per_minute_inr?: number | null;
   suspended?: boolean;
+  is_locked?: boolean;
 }
 
 // The five sellable plans, in ascending order, for the plan selectors.
@@ -102,6 +105,7 @@ export interface AdminClientDetail {
   pricing?: AdminClientPricing | null;
   money?: AdminClientMoney | null;
   suspended?: boolean;
+  is_locked?: boolean;
   notes?: AdminClientNote[] | null;
   voicelink?: AdminClientVoiceLink | null;
   kyc?: AdminClientKycStatus | null;
@@ -126,13 +130,22 @@ export interface ChargeSetupFeeResult {
 
 export interface CreateAdminClientBody {
   email: string;
+  password?: string;
   name?: string;
   plan?: string;
   initial_credit_minutes?: number;
 }
 
+export interface ResetClientPasswordResult {
+  success: boolean;
+  organization_id: number;
+  owner_email: string;
+  message: string;
+}
+
 export interface CreateAdminClientResult {
   organization_id?: number;
+  temporary_password?: string;
   [key: string]: unknown;
 }
 
@@ -219,10 +232,7 @@ export interface AdminClientKycStatus {
 }
 
 function backendUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    (typeof window !== "undefined" ? window.location.origin : "")
-  );
+  return resolveBrowserBackendUrl();
 }
 
 function detailFromBody(body: unknown): string {
@@ -369,6 +379,40 @@ export const createAdminClient = (token: string, body: CreateAdminClientBody) =>
   adminFetch<CreateAdminClientResult>(token, "", {
     method: "POST",
     body: JSON.stringify(body),
+  });
+
+export const resetClientPassword = (
+  token: string,
+  organizationId: number,
+  password: string,
+  email?: string,
+) =>
+  adminFetch<ResetClientPasswordResult>(
+    token,
+    `/${organizationId}/reset-password`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        password,
+        ...(email ? { email } : {}),
+      }),
+    },
+  );
+
+export interface ToggleClientLockResult {
+  organization_id: number;
+  is_locked: boolean;
+  message: string;
+}
+
+export const toggleClientLock = (
+  token: string,
+  organizationId: number,
+  isLocked: boolean,
+) =>
+  adminFetch<ToggleClientLockResult>(token, `/${organizationId}/lock`, {
+    method: "POST",
+    body: JSON.stringify({ is_locked: isLocked }),
   });
 
 export const listAdminAudit = async (

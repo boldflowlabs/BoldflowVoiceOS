@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactFlowInstance } from "@xyflow/react";
-import { AlertCircle, ArrowLeft, Bot, Clipboard, Copy, Download, Eye, History, LoaderCircle, Menu, MoreVertical, Pencil, Phone, Rocket } from "lucide-react";
+import { AlertCircle, ArrowLeft, Bot, Clipboard, Copy, Download, Eye, History, LoaderCircle, MoreVertical, Pencil, Phone, Rocket } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -27,7 +27,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { useSidebar } from "@/components/ui/sidebar";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import type { WorkflowConfigurations } from "@/types/workflow-configurations";
 
 import { VoicePickerPopover } from "./VoicePickerPopover";
@@ -80,7 +80,7 @@ export const WorkflowEditorHeader = ({
     organizationModelConfiguration,
 }: WorkflowEditorHeaderProps) => {
     const router = useRouter();
-    const { toggleSidebar } = useSidebar();
+    const { isAdmin } = useIsAdmin();
     const [savingWorkflow, setSavingWorkflow] = useState(false);
     const [duplicating, setDuplicating] = useState(false);
     const [publishing, setPublishing] = useState(false);
@@ -245,15 +245,8 @@ export const WorkflowEditorHeader = ({
 
     return (
         <div className="flex items-center justify-between w-full h-14 px-4 bg-[#1a1a1a] border-b border-[#2a2a2a]">
-            {/* Left section: Mobile menu + Back button + Workflow name */}
+            {/* Left section: Back button + Workflow name */}
             <div className="flex items-center gap-3 mr-4">
-                <button
-                    onClick={toggleSidebar}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-[#2a2a2a] transition-colors md:hidden"
-                    aria-label="Open menu"
-                >
-                    <Menu className="w-5 h-5 text-gray-400" />
-                </button>
                 <button
                     onClick={handleBack}
                     className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-[#2a2a2a] transition-colors"
@@ -295,7 +288,7 @@ export const WorkflowEditorHeader = ({
                                 </span>
                                 <span className="hidden md:inline">{workflowName}</span>
                             </h1>
-                            {!isViewingHistoricalVersion && (
+                            {!isViewingHistoricalVersion && isAdmin && (
                                 <button
                                     ref={renameButtonRef}
                                     type="button"
@@ -318,13 +311,13 @@ export const WorkflowEditorHeader = ({
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-zinc-300 bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800">
                         <Eye className="w-4 h-4 text-zinc-500" />
                         <span className="text-sm text-zinc-600 dark:text-zinc-300">
-                            Viewing {activeVersionLabel} — Read only
+                            Viewing {activeVersionLabel || "Agent"} — Read only
                         </span>
                     </div>
                 )}
 
-                {/* Back to Draft button when viewing history */}
-                {isViewingHistoricalVersion && (
+                {/* Back to Draft button when viewing history (admins only) */}
+                {isViewingHistoricalVersion && isAdmin && (
                     <Button
                         onClick={onBackToDraft}
                         className="bg-teal-600 hover:bg-teal-700 text-white px-4"
@@ -333,21 +326,23 @@ export const WorkflowEditorHeader = ({
                     </Button>
                 )}
 
-                {/* Version history button */}
-                <button
-                    onClick={onHistoryClick}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#3a3a3a] hover:bg-[#2a2a2a] transition-colors cursor-pointer"
-                >
-                    <History className="w-4 h-4 text-gray-400" />
-                    {activeVersionLabel && !isViewingHistoricalVersion && (
-                        <span className="text-sm text-gray-300">{activeVersionLabel}</span>
-                    )}
-                </button>
+                {/* Version history button (admins only) */}
+                {isAdmin && (
+                    <button
+                        onClick={onHistoryClick}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-[#3a3a3a] hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+                    >
+                        <History className="w-4 h-4 text-gray-400" />
+                        {activeVersionLabel && !isViewingHistoricalVersion && (
+                            <span className="text-sm text-gray-300">{activeVersionLabel}</span>
+                        )}
+                    </button>
+                )}
 
-                {/* Unsaved changes indicator (hidden when viewing history) */}
-                {isDirty && !isViewingHistoricalVersion && (
+                {/* Unsaved changes indicator (hidden when viewing history or for clients) */}
+                {isDirty && !isViewingHistoricalVersion && isAdmin && (
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-yellow-500/30 bg-yellow-500/10">
-                        <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                        <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
                         <span className="text-sm text-yellow-500">Unsaved changes</span>
                     </div>
                 )}
@@ -398,8 +393,8 @@ export const WorkflowEditorHeader = ({
                     </Popover>
                 )}
 
-                {/* Publish button (only when on draft with no unsaved changes) */}
-                {!isViewingHistoricalVersion && hasDraft && (
+                {/* Publish button (only when on draft with no unsaved changes for admins) */}
+                {!isViewingHistoricalVersion && hasDraft && isAdmin && (
                     <Button
                         onClick={handlePublish}
                         disabled={isDirty || publishing || hasValidationErrors}
@@ -420,8 +415,8 @@ export const WorkflowEditorHeader = ({
                     </Button>
                 )}
 
-                {/* Quick voice picker — save is independent of canvas edits */}
-                {workflowConfigurations && (
+                {/* Quick voice picker — admins only */}
+                {workflowConfigurations && isAdmin && (
                     <VoicePickerPopover
                         workflowConfigurations={workflowConfigurations}
                         workflowName={workflowName}
@@ -453,8 +448,8 @@ export const WorkflowEditorHeader = ({
                     Test Agent
                 </Button>
 
-                {/* Save button (only shown when editing the draft) */}
-                {!isViewingHistoricalVersion && (
+                {/* Save button (only shown for admins when editing the draft) */}
+                {!isViewingHistoricalVersion && isAdmin && (
                     <Button
                         onClick={handleSave}
                         disabled={!isDirty || savingWorkflow}
@@ -490,18 +485,20 @@ export const WorkflowEditorHeader = ({
                             <History className="w-4 h-4 mr-2" />
                             View Runs
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onClick={handleDuplicate}
-                            disabled={duplicating}
-                            className="text-white hover:bg-[#2a2a2a] cursor-pointer"
-                        >
-                            {duplicating ? (
-                                <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                                <Copy className="w-4 h-4 mr-2" />
-                            )}
-                            {duplicating ? "Duplicating..." : "Duplicate Workflow"}
-                        </DropdownMenuItem>
+                        {isAdmin && (
+                            <DropdownMenuItem
+                                onClick={handleDuplicate}
+                                disabled={duplicating}
+                                className="text-white hover:bg-[#2a2a2a] cursor-pointer"
+                            >
+                                {duplicating ? (
+                                    <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Copy className="w-4 h-4 mr-2" />
+                                )}
+                                {duplicating ? "Duplicating..." : "Duplicate Workflow"}
+                            </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
                             onClick={handleDownloadWorkflow}
                             className="text-white hover:bg-[#2a2a2a] cursor-pointer"

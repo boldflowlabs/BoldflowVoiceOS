@@ -10,6 +10,7 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.enums import PostHogEvent
 from api.schemas.ai_model_configuration import EffectiveAIModelConfiguration
+from api.services.auth.admin_emails import promote_if_admin_email
 from api.services.auth.stack_auth import stackauth
 from api.services.configuration.registry import ServiceProviders
 from api.services.mps_billing import ensure_hosted_mps_billing_account_v2
@@ -345,6 +346,7 @@ async def _handle_oss_auth(authorization: str | None) -> UserModel:
         payload = decode_jwt_token(token)
         user = await db_client.get_user_by_id(int(payload["sub"]))
         if user:
+            user = await promote_if_admin_email(user)
             return user
         raise HTTPException(status_code=401, detail="User not found")
     except HTTPException:

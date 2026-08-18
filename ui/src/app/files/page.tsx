@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Upload } from "lucide-react";
+import { Database, ExternalLink, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -25,7 +25,6 @@ export default function FilesPage() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [isUploadOpen, setIsUploadOpen] = useState(false);
 
-    // Redirect if not authenticated
     useEffect(() => {
         if (!loading && !user) {
             redirectToLogin();
@@ -40,9 +39,9 @@ export default function FilesPage() {
     if (loading || !user) {
         return (
             <PageShell width="wide">
-                <div className="space-y-4">
-                    <Skeleton className="h-12 w-64" />
-                    <Skeleton className="h-64 w-full" />
+                <div className="space-y-4 animate-pulse">
+                    <Skeleton className="h-12 w-64 rounded-xl" />
+                    <Skeleton className="h-64 w-full rounded-2xl" />
                 </div>
             </PageShell>
         );
@@ -50,29 +49,38 @@ export default function FilesPage() {
 
     return (
         <PageShell width="wide">
-            <div>
-                <PageHeader eyebrow="Knowledge Base" title="Knowledge Base Files" />
-                <p className="text-body mt-1 text-muted-foreground">
-                    Upload and manage documents for your voice agents to reference.{" "}
-                    <a href="https://docs.dograh.com/voice-agent/knowledge-base" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2 hover:text-foreground">
-                        Learn more <ExternalLink className="h-3 w-3" />
-                    </a>
-                </p>
-            </div>
+            <PageHeader
+                icon={Database}
+                eyebrow="Intelligence"
+                title="Knowledge Base & Documents"
+                subtitle={
+                    <span>
+                        Upload PDF documents, product manuals, and FAQ sheets for your voice agents to reference in real-time.{" "}
+                        <a
+                            href="https://docs.dograh.com/voice-agent/knowledge-base"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-0.5 text-foreground underline underline-offset-2 hover:text-primary transition-colors font-medium"
+                        >
+                            Learn more <ExternalLink className="h-3 w-3" />
+                        </a>
+                    </span>
+                }
+                actions={
+                    <Button variant="brand" onClick={() => setIsUploadOpen(true)}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload Document
+                    </Button>
+                }
+            />
 
-            <Card>
+            <Card className="rounded-2xl border-border/70 bg-card shadow-xs">
                 <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <CardTitle>Your Documents</CardTitle>
-                            <CardDescription>
-                                Documents shared across all agents in your organization
-                            </CardDescription>
-                        </div>
-                        <Button onClick={() => setIsUploadOpen(true)}>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Upload Document
-                        </Button>
+                    <div>
+                        <CardTitle>Organization Documents</CardTitle>
+                        <CardDescription>
+                            Vector-embedded documents shared across all agents in your organization
+                        </CardDescription>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -81,11 +89,11 @@ export default function FilesPage() {
             </Card>
 
             <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-                <DialogContent>
+                <DialogContent className="rounded-2xl border-border/80 bg-card/95 backdrop-blur-xl">
                     <DialogHeader>
                         <DialogTitle>Upload Document</DialogTitle>
                         <DialogDescription>
-                            Upload a PDF or document file to add to your knowledge base
+                            Upload a PDF, text, or document file to add to your knowledge base
                         </DialogDescription>
                     </DialogHeader>
                     <DocumentUpload onUploadSuccess={handleUploadSuccess} />

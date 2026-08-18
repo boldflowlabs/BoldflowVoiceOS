@@ -97,7 +97,7 @@ function PeriodToggle({
         <div
             role="group"
             aria-label="Trend granularity"
-            className="inline-flex rounded-lg border border-border/60 bg-muted p-[3px]"
+            className="inline-flex rounded-lg border border-border bg-muted/50 p-0.5 shadow-xs"
         >
             {PERIODS.map((p) => (
                 <button
@@ -107,9 +107,9 @@ function PeriodToggle({
                     disabled={disabled}
                     onClick={() => onChange(p.value)}
                     className={cn(
-                        'rounded-md px-3 py-1 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+                        'rounded-md px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
                         value === p.value
-                            ? 'bg-card text-foreground shadow-[var(--shadow-card)]'
+                            ? 'bg-card text-foreground shadow-xs font-semibold'
                             : 'text-muted-foreground hover:text-foreground',
                     )}
                 >
@@ -136,11 +136,11 @@ function TrendTooltip({
     if (!active || !payload || !payload[0]) return null;
     const v = payload[0].value;
     return (
-        <div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-[var(--shadow-pop)]">
-            <p className="text-small font-medium text-foreground">
+        <div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-md text-xs">
+            <p className="font-semibold text-foreground">
                 {label ? formatBucket(label, period) : ''}
             </p>
-            <p className="text-small text-muted-foreground">
+            <p className="font-medium text-primary mt-0.5">
                 {unit === 'min' ? `${v.toFixed(1)} min` : `${v.toLocaleString()} ${unit}`}
             </p>
         </div>

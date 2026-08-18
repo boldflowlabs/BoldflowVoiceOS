@@ -39,8 +39,8 @@ export default function WhatsAppIntegrationPage() {
         description="Automatically send an approved WhatsApp template (with an optional document) to the lead after each call. Connect your own provider account and API key."
         actions={
           <Badge
-            variant="secondary"
-            className="shrink-0 bg-muted text-muted-foreground"
+            variant="brand"
+            className="shrink-0"
           >
             Bring your own provider
           </Badge>

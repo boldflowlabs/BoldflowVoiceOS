@@ -4,9 +4,12 @@ import {
   ArrowRight,
   Coins,
   ExternalLink,
+  KeyRound,
   Loader2,
+  Lock,
   RefreshCw,
   Search,
+  Unlock,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -71,6 +74,8 @@ import {
   createAdminClient,
   grantCreditsToClient,
   listAdminClients,
+  resetClientPassword,
+  toggleClientLock,
 } from "@/lib/adminClients";
 import { useAuth } from "@/lib/auth";
 import { impersonateAsSuperadmin } from "@/lib/utils";
@@ -156,9 +161,14 @@ export default function ClientsPage() {
   // New client dialog state
   const [createOpen, setCreateOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [newName, setNewName] = useState("");
   const [newPlan, setNewPlan] = useState<string>("trial");
   const [newCredits, setNewCredits] = useState("");
+
+  // Reset password dialog state
+  const [resetTarget, setResetTarget] = useState<AdminClient | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
 
   const fetchClients = useCallback(
     async (showSpinner = false) => {
@@ -262,6 +272,7 @@ export default function ClientsPage() {
 
   const resetCreateForm = () => {
     setNewEmail("");
+    setNewPassword("");
     setNewName("");
     setNewPlan("trial");
     setNewCredits("");
@@ -275,6 +286,7 @@ export default function ClientsPage() {
       if (!token) throw new Error("Missing access token");
       await createAdminClient(token, {
         email: newEmail.trim(),
+        ...(newPassword.trim() ? { password: newPassword.trim() } : {}),
         ...(newName.trim() ? { name: newName.trim() } : {}),
         plan: newPlan,
         ...(newCredits.trim() !== ""
@@ -291,6 +303,62 @@ export default function ClientsPage() {
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const onResetPassword = async () => {
+    if (!resetTarget || !resetPasswordValue.trim()) return;
+    if (resetPasswordValue.trim().length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Missing access token");
+      const res = await resetClientPassword(
+        token,
+        resetTarget.organization_id,
+        resetPasswordValue.trim(),
+        resetTarget.owner_email ?? undefined,
+      );
+      toast.success(res.message || `Password updated for ${resetTarget.owner_email}`);
+      setResetTarget(null);
+      setResetPasswordValue("");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to reset password",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const [togglingLockOrgId, setTogglingLockOrgId] = useState<number | null>(null);
+
+  const onToggleLock = async (client: AdminClient) => {
+    const nextLocked = client.is_locked === false ? true : false;
+    setTogglingLockOrgId(client.organization_id);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("Missing access token");
+      await toggleClientLock(token, client.organization_id, nextLocked);
+      setClients((prev) =>
+        prev.map((c) =>
+          c.organization_id === client.organization_id
+            ? { ...c, is_locked: nextLocked }
+            : c
+        )
+      );
+      toast.success(
+        nextLocked
+          ? `Client #${client.organization_id} locked in view-only mode`
+          : `Client #${client.organization_id} unlocked for self-service editing`
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to toggle lock status");
+    } finally {
+      setTogglingLockOrgId(null);
     }
   };
 
@@ -534,6 +602,23 @@ export default function ClientsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => {
+                                setResetTarget(client);
+                                setResetPasswordValue("");
+                              }}
+                            >
+                              <KeyRound className="h-3.5 w-3.5 text-primary" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p>Reset client login password</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => onImpersonate(client)}
                               disabled={!client.owner_provider_id}
                             >
@@ -542,6 +627,32 @@ export default function ClientsPage() {
                           </TooltipTrigger>
                           <TooltipContent side="top">
                             <p>Impersonate the owner (new tab)</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onToggleLock(client)}
+                              disabled={togglingLockOrgId === client.organization_id}
+                              className={client.is_locked === false ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10" : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"}
+                            >
+                              {togglingLockOrgId === client.organization_id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : client.is_locked === false ? (
+                                <Unlock className="h-3.5 w-3.5" />
+                              ) : (
+                                <Lock className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p>
+                              {client.is_locked === false
+                                ? "Unlocked (Editing Allowed) — Click to lock in view-only mode"
+                                : "Locked (View Only) — Click to unlock client self-service editing"}
+                            </p>
                           </TooltipContent>
                         </Tooltip>
                         <Button variant="outline" size="sm" asChild>
@@ -637,6 +748,19 @@ export default function ClientsPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="new-password">Owner login password</Label>
+                <Input
+                  id="new-password"
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Set login password (or leave blank to auto-generate)"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  The client will use this password to sign in to their workspace.
+                </p>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="new-name">Organization name (optional)</Label>
                 <Input
                   id="new-name"
@@ -698,6 +822,58 @@ export default function ClientsPage() {
               >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create client
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reset client password dialog */}
+        <Dialog
+          open={resetTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setResetTarget(null);
+              setResetPasswordValue("");
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reset client password</DialogTitle>
+              <DialogDescription>
+                Set a new login password for {resetTarget?.owner_email ?? "this client"}.
+                The client will be able to log in immediately with this new password.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="reset-pwd">New password</Label>
+                <Input
+                  id="reset-pwd"
+                  type="text"
+                  value={resetPasswordValue}
+                  onChange={(e) => setResetPasswordValue(e.target.value)}
+                  placeholder="Enter new password (min 6 characters)"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setResetTarget(null);
+                  setResetPasswordValue("");
+                }}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={onResetPassword}
+                disabled={submitting || resetPasswordValue.trim().length < 6}
+              >
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Update password
               </Button>
             </DialogFooter>
           </DialogContent>

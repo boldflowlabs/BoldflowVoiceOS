@@ -81,6 +81,29 @@ async def get_resolved_ai_model_configuration(
             organization_configuration=state.configuration,
         )
 
+    # Auto-initialize or migrate organization to V2 configuration by default
+    if organization_id is not None:
+        try:
+            legacy = (
+                await db_client.get_user_configurations(user_id)
+                if user_id is not None
+                else None
+            )
+            configuration = convert_legacy_ai_model_configuration_to_v2(legacy)
+            await upsert_organization_ai_model_configuration_v2(
+                organization_id, configuration
+            )
+            return ResolvedAIModelConfiguration(
+                effective=compile_ai_model_configuration_v2(configuration),
+                source="organization_v2",
+                organization_configuration=configuration,
+            )
+        except Exception:
+            logger.warning(
+                f"Failed to auto-migrate organization {organization_id} to v2 config",
+                exc_info=True,
+            )
+
     if user_id is None:
         return ResolvedAIModelConfiguration(
             effective=EffectiveAIModelConfiguration(),
@@ -91,7 +114,7 @@ async def get_resolved_ai_model_configuration(
     legacy = await db_client.get_user_configurations(user_id)
     return ResolvedAIModelConfiguration(
         effective=legacy,
-        source="legacy_user_v1" if _has_model_services(legacy) else "empty",
+        source="organization_v2" if _has_model_services(legacy) else "empty",
         organization_configuration_error=state.validation_error,
     )
 

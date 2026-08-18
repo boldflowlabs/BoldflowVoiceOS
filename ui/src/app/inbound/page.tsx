@@ -15,6 +15,7 @@ import type {
 import { InboundCallsTable } from '@/components/inbound/InboundCallsTable';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { PageShell } from '@/components/layout/PageShell';
+import { LockedSafeguardBanner } from '@/components/LockedSafeguardBanner';
 import { PhoneNumberDialog } from '@/components/telephony/PhoneNumberDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,8 +29,10 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { detailFromError } from '@/lib/apiError';
 import { useAuth } from '@/lib/auth';
+import { BRAND } from '@/lib/brand';
 
 interface InboundRow {
     config: TelephonyConfigurationListItem;
@@ -38,6 +41,7 @@ interface InboundRow {
 
 export default function InboundPage() {
     const { user, getAccessToken, loading: authLoading } = useAuth();
+    const { isAdmin } = useIsAdmin();
     const [rows, setRows] = useState<InboundRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -92,6 +96,12 @@ export default function InboundPage() {
                 subtitle="Route incoming calls to a voice agent and review inbound call history."
             />
 
+            <LockedSafeguardBanner
+                variant="card"
+                featureName="inbound phone routing and agent bindings"
+                className="mb-6"
+            />
+
             {/* Honest activation note */}
             <Card className="border-primary/30 bg-accent/30">
                 <CardContent className="flex items-start gap-3 py-4">
@@ -125,12 +135,16 @@ export default function InboundPage() {
                     ) : rows.length === 0 ? (
                         <div className="py-10 text-center">
                             <PhoneIncoming className="mx-auto mb-2 h-6 w-6 text-muted-foreground/50" aria-hidden />
-                            <p className="text-small text-muted-foreground">No phone numbers yet.</p>
-                            <Button asChild variant="outline" size="sm" className="mt-3">
-                                <Link href="/telephony-configurations">
-                                    <Plus className="mr-2 h-4 w-4" /> Add a number under Telephony
-                                </Link>
-                            </Button>
+                            <p className="text-small text-muted-foreground">
+                                {isAdmin ? "No phone numbers yet." : `No inbound phone lines assigned yet. Contact ${BRAND.name} support to provision numbers.`}
+                            </p>
+                            {isAdmin && (
+                                <Button asChild variant="outline" size="sm" className="mt-3">
+                                    <Link href="/telephony-configurations">
+                                        <Plus className="mr-2 h-4 w-4" /> Add a number under Telephony
+                                    </Link>
+                                </Button>
+                            )}
                         </div>
                     ) : (
                         <div className="overflow-hidden rounded-lg border">
@@ -140,7 +154,7 @@ export default function InboundPage() {
                                         <TableHead className="font-semibold">Number</TableHead>
                                         <TableHead className="font-semibold">Configuration</TableHead>
                                         <TableHead className="font-semibold">Inbound agent</TableHead>
-                                        <TableHead className="font-semibold text-right">Actions</TableHead>
+                                        {isAdmin && <TableHead className="font-semibold text-right">Actions</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -183,16 +197,18 @@ export default function InboundPage() {
                                                     <span className="text-sm text-muted-foreground">Not assigned</span>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="text-right">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => openAssign({ config, number })}
-                                                >
-                                                    <Pencil className="mr-1.5 h-4 w-4" />
-                                                    {number.inbound_workflow_id ? 'Change' : 'Assign'}
-                                                </Button>
-                                            </TableCell>
+                                            {isAdmin && (
+                                                <TableCell className="text-right">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => openAssign({ config, number })}
+                                                    >
+                                                        <Pencil className="mr-1.5 h-4 w-4" />
+                                                        {number.inbound_workflow_id ? 'Change' : 'Assign'}
+                                                    </Button>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -200,14 +216,20 @@ export default function InboundPage() {
                         </div>
                     )}
                     <p className="mt-4 text-small text-muted-foreground">
-                        Manage numbers and credentials in{' '}
-                        <Link
-                            href="/telephony-configurations"
-                            className="inline-flex items-center gap-0.5 underline hover:text-foreground"
-                        >
-                            Telephony <ExternalLink className="h-3 w-3" />
-                        </Link>
-                        .
+                        {isAdmin ? (
+                            <>
+                                Manage numbers and credentials in{' '}
+                                <Link
+                                    href="/telephony-configurations"
+                                    className="inline-flex items-center gap-0.5 underline hover:text-foreground"
+                                >
+                                    Telephony <ExternalLink className="h-3 w-3" />
+                                </Link>
+                                .
+                            </>
+                        ) : (
+                            <span>Inbound routing and agent assignments are managed by {BRAND.name}.</span>
+                        )}
                     </p>
                 </CardContent>
             </Card>

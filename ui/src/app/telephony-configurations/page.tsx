@@ -28,6 +28,7 @@ import type {
 import { EmptyState } from "@/components/layout/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
+import { LockedSafeguardBanner } from "@/components/LockedSafeguardBanner";
 import { ConfigFormDialog } from "@/components/telephony/ConfigFormDialog";
 import {
   AlertDialog,
@@ -45,11 +46,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { INTEGRATION_DOCUMENTATION_URLS } from "@/constants/documentation";
 import { useTelephonyConfigWarnings } from "@/context/TelephonyConfigWarningsContext";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
+import { BRAND } from "@/lib/brand";
 
 export default function TelephonyConfigurationsPage() {
   const { user, getAccessToken, loading: authLoading } = useAuth();
+  const { isAdmin } = useIsAdmin();
   const {
     telnyxMissingWebhookPublicKeyCount,
     refresh: refreshWarnings,
@@ -150,30 +154,39 @@ export default function TelephonyConfigurationsPage() {
     <>
       <PageShell width="narrow">
         <PageHeader
-          eyebrow="Integrations"
-          title="Telephony configurations"
+          icon={Phone}
+          eyebrow="Telephony Trunks"
+          title="Telephony Configurations"
           subtitle={
             <>
-              Connect one or more telephony provider accounts. Each campaign uses one
-              configuration; inbound calls are routed to the right one by account ID.{" "}
+              Connect SIP trunks, Twilio, Telnyx, or Plivo provider accounts. Each campaign uses one
+              configuration; inbound calls are routed automatically by caller ID.{" "}
               <a
                 href={INTEGRATION_DOCUMENTATION_URLS.telephonyOverview}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 underline underline-offset-2 hover:text-foreground"
+                className="inline-flex items-center gap-0.5 text-foreground underline underline-offset-2 hover:text-primary transition-colors font-medium"
               >
                 Learn more <ExternalLink className="h-3 w-3" />
               </a>
             </>
           }
           actions={
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" /> Add configuration
-            </Button>
+            isAdmin ? (
+              <Button variant="brand" onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Add Configuration
+              </Button>
+            ) : undefined
           }
         />
 
-        {telnyxMissingWebhookPublicKeyCount > 0 && (
+        <LockedSafeguardBanner
+          variant="card"
+          featureName="telephony carriers, SIP trunks, and caller IDs"
+          className="mb-6"
+        />
+
+        {telnyxMissingWebhookPublicKeyCount > 0 && isAdmin && (
           <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-[var(--shadow-card)] dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
@@ -204,12 +217,18 @@ export default function TelephonyConfigurationsPage() {
         ) : items.length === 0 ? (
           <EmptyState
             icon={Phone}
-            title="No telephony configurations yet"
-            description="Add one to enable outbound calls and receive inbound calls."
+            title={isAdmin ? "No telephony configurations yet" : "No telephony trunks assigned"}
+            description={
+              isAdmin
+                ? "Add one to enable outbound calls and receive inbound calls."
+                : `The ${BRAND.name} team will configure your SIP trunk and carrier routing.`
+            }
             action={
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" /> Add configuration
-              </Button>
+              isAdmin ? (
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" /> Add configuration
+                </Button>
+              ) : undefined
             }
           />
         ) : (
@@ -258,32 +277,36 @@ export default function TelephonyConfigurationsPage() {
                     </div>
                   </Link>
                   <div className="flex items-center gap-1">
-                    {!item.is_default_outbound && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onSetDefault(item)}
-                        title="Set as default outbound"
-                      >
-                        <Star className="h-4 w-4" />
-                      </Button>
+                    {isAdmin && (
+                      <>
+                        {!item.is_default_outbound && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onSetDefault(item)}
+                            title="Set as default outbound"
+                          >
+                            <Star className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEdit(item)}
+                          title="Edit"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteTarget(item)}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onEdit(item)}
-                      title="Edit"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDeleteTarget(item)}
-                      title="Delete"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
                     <Link
                       href={`/telephony-configurations/${item.id}`}
                       className="text-muted-foreground"

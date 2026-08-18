@@ -36,6 +36,8 @@ interface SaasUserState {
     /** Platform-level superuser flag (UserModel.is_superuser on the backend). */
     isSuperuser: boolean;
     superuserLoaded: boolean;
+    /** Client view-only restriction lock (true = locked/read-only, false = unlocked/editing). */
+    isLocked: boolean;
     /** Org plan tier ("trial" | "starter" | "growth" | "scale"). */
     plan: string;
     /** Feature flags for the org's plan tier. */
@@ -54,6 +56,7 @@ interface SaasUserState {
 const INITIAL_SAAS_STATE: SaasUserState = {
     isSuperuser: false,
     superuserLoaded: false,
+    isLocked: true,
     plan: 'trial',
     planFeatures: { api: false, mcp: false, build_with_ai: false },
     planLoaded: false,
@@ -65,7 +68,8 @@ const INITIAL_SAAS_STATE: SaasUserState = {
 // app tree mounts (upstream mounts `OrgConfigProvider`, which has no place for
 // these fields).
 let saasState: SaasUserState = INITIAL_SAAS_STATE;
-let saasFetchStarted = false;
+let lastFetchedUserKey: string | number | null = null;
+let isFetchingSaasState = false;
 const saasListeners = new Set<() => void>();
 
 function setSaasState(next: Partial<SaasUserState>) {
@@ -89,28 +93,45 @@ function useSaasUserState(): SaasUserState {
     const state = useSyncExternalStore(subscribeSaasState, getSaasSnapshot, getSaasSnapshot);
 
     useEffect(() => {
-        // Fetch the platform superuser flag + plan/features once, after auth is
-        // ready. Mirrors the fork's original behaviour (single fetch guarded by
-        // a ref) using a module-level guard so it stays a single request.
-        if (auth.loading || saasFetchStarted) {
+        if (auth.loading) {
             return;
         }
-        saasFetchStarted = true;
+
+        if (!auth.isAuthenticated || !auth.user) {
+            lastFetchedUserKey = null;
+            setSaasState({
+                isSuperuser: false,
+                isLocked: true,
+                plan: 'trial',
+                planFeatures: { api: false, mcp: false, build_with_ai: false },
+                superuserLoaded: true,
+                planLoaded: true,
+                permissionsLoaded: true,
+            });
+            return;
+        }
+
+        const currentUserKey = (auth.user as { id?: string | number } | undefined)?.id ?? 'authenticated';
+        if (lastFetchedUserKey === currentUserKey && saasState.superuserLoaded) {
+            return;
+        }
+
+        if (isFetchingSaasState) return;
+        isFetchingSaasState = true;
 
         const fetchSaasState = async () => {
-            if (!auth.isAuthenticated) {
-                setSaasState({ superuserLoaded: true, planLoaded: true, permissionsLoaded: true });
-                return;
-            }
             try {
                 const response = await getAuthUserApiV1UserAuthUserGet();
                 // `plan`/`features` are served by the same endpoint; the generated
                 // SDK type predates them, so read through a widened shape.
                 const data = response.data as
-                    | { is_superuser?: boolean; plan?: string; features?: Partial<PlanFeatures> }
+                    | { is_superuser?: boolean; plan?: string; features?: Partial<PlanFeatures>; is_locked?: boolean }
                     | undefined;
+                const isSuper = !!data?.is_superuser;
+                lastFetchedUserKey = currentUserKey;
                 setSaasState({
-                    isSuperuser: !!data?.is_superuser,
+                    isSuperuser: isSuper,
+                    isLocked: isSuper ? false : Boolean(data?.is_locked ?? true),
                     plan: data?.plan ?? 'trial',
                     planFeatures: {
                         api: !!data?.features?.api,
@@ -124,17 +145,20 @@ function useSaasUserState(): SaasUserState {
             } catch {
                 setSaasState({
                     isSuperuser: false,
+                    isLocked: true,
                     plan: 'trial',
                     planFeatures: { api: false, mcp: false, build_with_ai: false },
                     superuserLoaded: true,
                     planLoaded: true,
                     permissionsLoaded: true,
                 });
+            } finally {
+                isFetchingSaasState = false;
             }
         };
 
-        fetchSaasState();
-    }, [auth.loading, auth.isAuthenticated]);
+        void fetchSaasState();
+    }, [auth.loading, auth.isAuthenticated, auth.user]);
 
     return state;
 }

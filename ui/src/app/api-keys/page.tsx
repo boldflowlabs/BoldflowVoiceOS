@@ -24,12 +24,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppConfig } from '@/context/AppConfigContext';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { useAuth } from '@/lib/auth';
 import { BRAND } from '@/lib/brand';
 import logger from '@/lib/logger';
 
 export default function APIKeysPage() {
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
+    const { isAdmin } = useIsAdmin();
     const { config } = useAppConfig();
     const isOSS = config?.deploymentMode === 'oss';
 
@@ -448,122 +450,124 @@ export default function APIKeysPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Dograh Service Keys Section */}
-                    <Card className="rounded-2xl border-border/60 bg-card shadow-[var(--shadow-card)] transition-all duration-200">
-                        <CardHeader>
-                            <div className="flex justify-between items-center gap-4">
-                                <div className="space-y-1.5">
-                                    <CardTitle className="text-h3">{BRAND.name} Service Keys</CardTitle>
-                                    <CardDescription className="text-body">
-                                        Manage service keys for accessing {BRAND.name} AI services (LLM, TTS, STT)
-                                    </CardDescription>
-                                </div>
-                                <div className="flex gap-2">
-                                    {showServiceKeyArchiveControls && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setShowServiceArchived(!showServiceArchived)}
-                                        >
-                                            {showServiceArchived ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-                                            {showServiceArchived ? 'Hide' : 'Show'} Archived
-                                        </Button>
-                                    )}
-                                    {canCreateServiceKey ? (
-                                        <Button
-                                            onClick={() => setIsCreateServiceDialogOpen(true)}
-                                            size="sm"
-                                        >
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Create Service Key
-                                        </Button>
-                                    ) : BRAND.showCommunityLinks ? (
-                                        <span className="text-sm text-muted-foreground">
-                                            To generate additional service keys, <a href="https://app.dograh.com" target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-2 hover:text-primary/80">Sign up on app.dograh.com</a>
-                                        </span>
-                                    ) : null}
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            {isServiceKeysLoading ? (
-                                <div className="space-y-3">
-                                    {[1, 2].map((i) => (
-                                        <div key={i} className="flex items-center justify-between p-4 border border-border/60 rounded-xl">
-                                            <div className="space-y-2">
-                                                <Skeleton className="h-4 w-32" />
-                                                <Skeleton className="h-3 w-24" />
-                                            </div>
-                                            <Skeleton className="h-8 w-20" />
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : serviceKeys.length === 0 ? (
-                                <EmptyState
-                                    icon={Key}
-                                    title="No service keys found"
-                                    action={
-                                        canCreateServiceKey ? (
-                                            <Button onClick={() => setIsCreateServiceDialogOpen(true)}>
-                                                Create Your First Service Key
+                    {/* Service Keys Section (Admins / Superusers only) */}
+                    {isAdmin && (
+                        <Card className="rounded-2xl border-border/60 bg-card shadow-[var(--shadow-card)] transition-all duration-200">
+                            <CardHeader>
+                                <div className="flex justify-between items-center gap-4">
+                                    <div className="space-y-1.5">
+                                        <CardTitle className="text-h3">{BRAND.name} Service Keys</CardTitle>
+                                        <CardDescription className="text-body">
+                                            Manage service keys for accessing {BRAND.name} AI services (LLM, TTS, STT)
+                                        </CardDescription>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {showServiceKeyArchiveControls && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setShowServiceArchived(!showServiceArchived)}
+                                            >
+                                                {showServiceArchived ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
+                                                {showServiceArchived ? 'Hide' : 'Show'} Archived
                                             </Button>
-                                        ) : undefined
-                                    }
-                                />
-                            ) : (
-                                <div className="space-y-3">
-                                    {serviceKeys.map((key) => (
-                                        <div
-                                            key={key.id}
-                                            className={`flex items-center justify-between gap-4 p-4 border border-border/60 rounded-xl transition-all duration-200 ${
-                                                key.archived_at ? 'bg-muted opacity-60' : 'bg-card hover:border-border hover:shadow-[var(--shadow-card)]'
-                                            }`}
-                                        >
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-medium">{key.name}</span>
-                                                    {key.archived_at ? (
-                                                        <Badge variant="secondary">Archived</Badge>
-                                                    ) : key.is_active ? (
-                                                        <Badge variant="default">Active</Badge>
-                                                    ) : (
-                                                        <Badge variant="destructive">Inactive</Badge>
-                                                    )}
-                                                    {key.expires_at && new Date(key.expires_at) > new Date() && (
-                                                        <Badge variant="outline">
-                                                            Expires: {formatDate(key.expires_at)}
-                                                        </Badge>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                    <span className="font-mono bg-muted px-2 py-1 rounded">{key.key_prefix}...</span>
-                                                    <span className="text-xs text-muted-foreground/70">
-                                                        (Full key hidden for security)
-                                                    </span>
-                                                </div>
-                                                <div className="mt-2 text-xs text-muted-foreground">
-                                                    Created: {formatDate(key.created_at)} •
-                                                    Last used: {formatDate(key.last_used_at ?? null)}
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                {!key.archived_at && showServiceKeyArchiveControls && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleArchiveServiceKey(String(key.id))}
-                                                        className="text-destructive hover:text-destructive/90"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        )}
+                                        {canCreateServiceKey ? (
+                                            <Button
+                                                onClick={() => setIsCreateServiceDialogOpen(true)}
+                                                size="sm"
+                                            >
+                                                <Plus className="w-4 h-4 mr-2" />
+                                                Create Service Key
+                                            </Button>
+                                        ) : BRAND.showCommunityLinks ? (
+                                            <span className="text-sm text-muted-foreground">
+                                                To generate additional service keys, <a href="https://app.dograh.com" target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-2 hover:text-primary/80">Sign up on app.dograh.com</a>
+                                            </span>
+                                        ) : null}
+                                    </div>
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                            </CardHeader>
+                            <CardContent>
+                                {isServiceKeysLoading ? (
+                                    <div className="space-y-3">
+                                        {[1, 2].map((i) => (
+                                            <div key={i} className="flex items-center justify-between p-4 border border-border/60 rounded-xl">
+                                                <div className="space-y-2">
+                                                    <Skeleton className="h-4 w-32" />
+                                                    <Skeleton className="h-3 w-24" />
+                                                </div>
+                                                <Skeleton className="h-8 w-20" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : serviceKeys.length === 0 ? (
+                                    <EmptyState
+                                        icon={Key}
+                                        title="No service keys found"
+                                        action={
+                                            canCreateServiceKey ? (
+                                                <Button onClick={() => setIsCreateServiceDialogOpen(true)}>
+                                                    Create Your First Service Key
+                                                </Button>
+                                            ) : undefined
+                                        }
+                                    />
+                                ) : (
+                                    <div className="space-y-3">
+                                        {serviceKeys.map((key) => (
+                                            <div
+                                                key={key.id}
+                                                className={`flex items-center justify-between gap-4 p-4 border border-border/60 rounded-xl transition-all duration-200 ${
+                                                    key.archived_at ? 'bg-muted opacity-60' : 'bg-card hover:border-border hover:shadow-[var(--shadow-card)]'
+                                                }`}
+                                            >
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="font-medium">{key.name}</span>
+                                                        {key.archived_at ? (
+                                                            <Badge variant="secondary">Archived</Badge>
+                                                        ) : key.is_active ? (
+                                                            <Badge variant="default">Active</Badge>
+                                                        ) : (
+                                                            <Badge variant="destructive">Inactive</Badge>
+                                                        )}
+                                                        {key.expires_at && new Date(key.expires_at) > new Date() && (
+                                                            <Badge variant="outline">
+                                                                Expires: {formatDate(key.expires_at)}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                        <span className="font-mono bg-muted px-2 py-1 rounded">{key.key_prefix}...</span>
+                                                        <span className="text-xs text-muted-foreground/70">
+                                                            (Full key hidden for security)
+                                                        </span>
+                                                    </div>
+                                                    <div className="mt-2 text-xs text-muted-foreground">
+                                                        Created: {formatDate(key.created_at)} •
+                                                        Last used: {formatDate(key.last_used_at ?? null)}
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    {!key.archived_at && showServiceKeyArchiveControls && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleArchiveServiceKey(String(key.id))}
+                                                            className="text-destructive hover:text-destructive/90"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
                         <p className="text-sm text-yellow-600 dark:text-yellow-500">

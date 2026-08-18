@@ -80,15 +80,16 @@ export const OnboardingProvider = ({ children }: { children: React.ReactNode }) 
         hasFetched.current = true;
 
         (async () => {
-            const res = await getUserOnboardingStateApiV1UserOnboardingStateGet().catch(() => null);
-            if (res?.data) {
-                const data = res.data as Partial<OnboardingState>;
-                setState((prev) => absorb(prev, data));
+            try {
+                const res = await getUserOnboardingStateApiV1UserOnboardingStateGet().catch(() => null);
+                if (res?.data) {
+                    const data = res.data as Partial<OnboardingState>;
+                    setState((prev) => absorb(prev, data));
+                }
+            } catch {
+                // Ignore onboarding fetch failures
+            } finally {
                 setLoaded(true);
-            } else {
-                // Fetch failed: stay in loading so one-time UI stays suppressed
-                // (fail closed — never re-show onboarding to an onboarded user).
-                console.error('[onboarding] failed to fetch onboarding state', res?.error);
             }
         })();
     }, [auth.loading, auth.isAuthenticated]);

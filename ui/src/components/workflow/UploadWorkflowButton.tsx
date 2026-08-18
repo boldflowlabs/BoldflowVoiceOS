@@ -129,20 +129,26 @@ export function UploadWorkflowButton() {
             </Button>
 
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-md rounded-2xl border-border/80 bg-card/95 backdrop-blur-xl">
                     <DialogHeader>
                         <DialogTitle>Upload Agent Definition</DialogTitle>
                     </DialogHeader>
                     <div
-                        className={`mt-4 border-2 border-dashed rounded-lg p-8 text-center ${isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'
-                            }`}
+                        className={`mt-4 border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${
+                            isDragging ? 'border-primary bg-primary/10' : 'border-border/80 bg-background/50'
+                        }`}
                         onDrop={handleDrop}
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                     >
-                        <Upload className="w-8 h-8 mx-auto mb-4 text-gray-400" />
-                        <p className="text-sm text-gray-600 mb-4">
-                            Drag and drop your Workflow JSON File here, or Click to Select
+                        <div className="flex h-12 w-12 mx-auto mb-4 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+                            <Upload className="w-6 h-6" />
+                        </div>
+                        <p className="text-sm font-medium text-foreground mb-1">
+                            Drag and drop your Workflow JSON file here
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-5">
+                            Supports exported agent definitions (.json)
                         </p>
                         <input
                             type="file"
@@ -152,13 +158,14 @@ export function UploadWorkflowButton() {
                             id="workflow-upload"
                         />
                         <Button
-                            variant="outline"
+                            variant="brand"
+                            size="sm"
                             onClick={() => document.getElementById('workflow-upload')?.click()}
                         >
-                            Select File
+                            Select File from Computer
                         </Button>
                         {error && (
-                            <p className="mt-4 text-sm text-red-600">{error}</p>
+                            <p className="mt-4 text-xs font-medium text-destructive">{error}</p>
                         )}
                     </div>
                 </DialogContent>

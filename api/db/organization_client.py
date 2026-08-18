@@ -92,6 +92,16 @@ class OrganizationClient(BaseDBClient):
             await session.commit()
         return await self.get_free_call_seconds_remaining(organization_id)
 
+    async def set_organization_unmetered(self, organization_id: int) -> None:
+        """Set an organization's free_call_seconds_remaining to NULL (unlimited)."""
+        async with self.async_session() as session:
+            await session.execute(
+                update(OrganizationModel)
+                .where(OrganizationModel.id == organization_id)
+                .values(free_call_seconds_remaining=None)
+            )
+            await session.commit()
+
     async def try_charge_call_seconds(
         self, organization_id: int, seconds: int
     ) -> bool:

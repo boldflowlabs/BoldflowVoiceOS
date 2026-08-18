@@ -10,13 +10,7 @@ interface Highlight {
 }
 
 /**
- * Integration-page hero: the canonical `PageHeader` (icon badge + eyebrow +
- * title + subtitle) plus an optional 3-up highlights grid. Built on PageHeader
- * so the Integrations pages share the exact same header as every other page —
- * they just add the highlights row on top.
- *
- * Render as a direct child of the page's `PageShell` so its `space-y-6` handles
- * the gap between the header, the grid, and the page's own card.
+ * Integration-page hero with glowing highlight grid and canonical PageHeader.
  */
 export function IntegrationHero({
   icon,
@@ -48,10 +42,12 @@ export function IntegrationHero({
           {highlights.map(({ icon: HighlightIcon, title: hTitle, description }) => (
             <div
               key={hTitle}
-              className="rounded-2xl border border-border/60 bg-card p-4 shadow-[var(--shadow-card)] transition-all duration-200"
+              className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/60 p-4 shadow-xs backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-pop)]"
             >
-              <HighlightIcon className="h-5 w-5 text-primary" />
-              <p className="text-label mt-3">{hTitle}</p>
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-xs">
+                <HighlightIcon className="h-4.5 w-4.5" />
+              </div>
+              <p className="text-sm font-semibold text-foreground mt-3">{hTitle}</p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 {description}
               </p>

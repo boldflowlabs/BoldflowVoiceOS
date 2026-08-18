@@ -36,6 +36,7 @@ class AdminClientItem(BaseModel):
     money_left_inr: Optional[float] = None
     money_spent_inr: float = 0.0
     suspended: bool = False
+    is_locked: bool = True
 
 
 class AdminClientsListResponse(BaseModel):
@@ -251,10 +252,21 @@ class AdminClientDetailResponse(BaseModel):
     pricing: AdminPricing
     money: AdminMoney
     suspended: bool = False
+    is_locked: bool = True
     notes: List[AdminNote] = Field(default_factory=list)
     kyc: AdminKycStatusResponse
     # Omitted (null) if the usage rollup could not be computed.
     usage: Optional[AdminClientUsage] = None
+
+
+class ToggleClientLockRequest(BaseModel):
+    is_locked: bool
+
+
+class ToggleClientLockResponse(BaseModel):
+    organization_id: int
+    is_locked: bool
+    message: str
 
 
 class AdminProfileUpdateRequest(BaseModel):
@@ -315,6 +327,7 @@ class CreateClientAccountRequest(BaseModel):
     """Create a brand-new client org + owner user."""
 
     email: str = Field(..., min_length=3)
+    password: Optional[str] = None
     name: Optional[str] = None
     plan: Optional[str] = None
     initial_credit_minutes: Optional[int] = Field(default=None, ge=0, le=1_000_000)
@@ -334,10 +347,21 @@ class CreateClientAccountResponse(BaseModel):
     organization_name: str
     plan: str
     credits_seconds_remaining: Optional[int] = None
-    # Generated login password for the new owner (superuser-only response) — the
-    # owner should change it after first login.
+    # Generated or supplied login password for the new owner
     temporary_password: str
     note: str
+
+
+class ResetClientPasswordRequest(BaseModel):
+    password: str = Field(..., min_length=6)
+    email: Optional[str] = None
+
+
+class ResetClientPasswordResponse(BaseModel):
+    success: bool
+    organization_id: int
+    owner_email: str
+    message: str
 
 
 class AdminAuditItem(BaseModel):

@@ -28,9 +28,7 @@ from email.message import EmailMessage
 from email.utils import formatdate
 from typing import Any, Mapping
 
-from loguru import logger
-
-DEFAULT_LEAD_EMAIL = "hardikagarwal@autosysai.dev"
+from api.constants import ADMIN_EMAILS
 
 # Human-friendly labels for the lead "kind" sent by the frontend.
 _KIND_LABELS = {
@@ -41,8 +39,14 @@ _KIND_LABELS = {
 
 
 def _destination() -> str:
-    """Resolve the notification inbox, defaulting to the Auto4You owner."""
-    return (os.getenv("LEAD_NOTIFICATION_EMAIL") or DEFAULT_LEAD_EMAIL).strip()
+    """Resolve the notification inbox, falling back to ADMIN_EMAILS."""
+    if os.getenv("LEAD_NOTIFICATION_EMAIL"):
+        return os.getenv("LEAD_NOTIFICATION_EMAIL", "").strip()
+    if ADMIN_EMAILS:
+        first_admin = [e.strip() for e in ADMIN_EMAILS.split(",") if e.strip()]
+        if first_admin:
+            return first_admin[0]
+    return "admin@example.com"
 
 
 def _smtp_config() -> dict[str, Any] | None:

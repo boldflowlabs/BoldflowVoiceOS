@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Upload } from "lucide-react";
+import { AudioLines, ExternalLink, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -28,9 +28,9 @@ export default function RecordingsPage() {
     if (loading || !user) {
         return (
             <PageShell width="wide">
-                <div className="space-y-4">
-                    <Skeleton className="h-12 w-64" />
-                    <Skeleton className="h-64 w-full" />
+                <div className="space-y-4 animate-pulse">
+                    <Skeleton className="h-12 w-64 rounded-xl" />
+                    <Skeleton className="h-64 w-full rounded-2xl" />
                 </div>
             </PageShell>
         );
@@ -38,31 +38,39 @@ export default function RecordingsPage() {
 
     return (
         <PageShell width="wide">
-            <div>
-                <PageHeader eyebrow="Media Library" title="Recordings" />
-                <p className="text-body mt-1 text-muted-foreground">
-                    Manage audio recordings for your organization. Use{" "}
-                    <code className="rounded bg-muted px-1 text-xs">@</code> in prompt fields to insert them,
-                    or as transition messages in tool calls.{" "}
-                    <a href={SETTINGS_DOCUMENTATION_URLS.recordings} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2 hover:text-foreground">
-                        Learn more <ExternalLink className="h-3 w-3" />
-                    </a>
-                </p>
-            </div>
+            <PageHeader
+                icon={AudioLines}
+                eyebrow="Media Library"
+                title="Audio Recordings & Assets"
+                subtitle={
+                    <span>
+                        Manage audio recordings for your voice workflows. Use{" "}
+                        <code className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-mono text-primary">@</code> in prompt fields to insert audio clips.{" "}
+                        <a
+                            href={SETTINGS_DOCUMENTATION_URLS.recordings}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-0.5 text-foreground underline underline-offset-2 hover:text-primary transition-colors font-medium"
+                        >
+                            Learn more <ExternalLink className="h-3 w-3" />
+                        </a>
+                    </span>
+                }
+                actions={
+                    <Button variant="brand" onClick={() => setIsUploadOpen(true)}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload Audio
+                    </Button>
+                }
+            />
 
-            <Card>
+            <Card className="rounded-2xl border-border/70 bg-card shadow-xs">
                 <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <CardTitle>All Recordings</CardTitle>
-                            <CardDescription>
-                                Audio recordings shared across all agents in your organization
-                            </CardDescription>
-                        </div>
-                        <Button onClick={() => setIsUploadOpen(true)}>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Upload Recording
-                        </Button>
+                    <div>
+                        <CardTitle>Audio Library</CardTitle>
+                        <CardDescription>
+                            High-fidelity audio recordings available to all conversational agents in your organization
+                        </CardDescription>
                     </div>
                 </CardHeader>
                 <CardContent>

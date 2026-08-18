@@ -12,6 +12,13 @@ export function LocalProviderWrapper({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true);
   const tokenRef = useRef<string | null>(null);
 
+  const isAuthPage =
+    typeof window !== 'undefined' &&
+    (window.location.pathname.startsWith('/auth/') ||
+      window.location.pathname.startsWith('/handler/') ||
+      window.location.pathname === '/login' ||
+      window.location.pathname === '/signup');
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -23,24 +30,26 @@ export function LocalProviderWrapper({ children }: { children: React.ReactNode }
           tokenRef.current = data.token;
           setUser(data.user);
           logger.info('OSS auth initialized', { user: data.user });
-        } else if (response.status === 401) {
-          // No token - redirect to login (but not if already on auth pages)
-          if (!window.location.pathname.startsWith('/auth/')) {
+        } else {
+          // No valid session token - redirect to login if not already on auth page
+          if (!isAuthPage) {
             window.location.href = '/auth/login';
             return;
           }
-        } else {
-          logger.error('Failed to initialize OSS auth');
         }
       } catch (error) {
         logger.error('Error initializing OSS auth', error);
+        if (!isAuthPage) {
+          window.location.href = '/auth/login';
+          return;
+        }
       } finally {
         setLoading(false);
       }
     };
 
     initializeAuth();
-  }, []);
+  }, [isAuthPage]);
 
   const getAccessToken = React.useCallback(async () => {
     if (typeof window === 'undefined') {
@@ -77,6 +86,27 @@ export function LocalProviderWrapper({ children }: { children: React.ReactNode }
     logout,
     provider: 'local' as const,
   }), [user, loading, getAccessToken, redirectToLogin, logout]);
+
+  // While checking auth on a protected page, show loading spinner instead of protected content
+  if (loading && !isAuthPage) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  // If unauthenticated on a protected page, redirect and render spinner
+  if (!loading && !user && !isAuthPage) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/auth/login';
+    }
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={contextValue}>

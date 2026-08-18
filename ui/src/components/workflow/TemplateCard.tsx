@@ -1,11 +1,12 @@
 'use client';
 
-import { Copy } from 'lucide-react';
+import { Copy, LayoutTemplate } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { duplicateWorkflowTemplateApiV1WorkflowTemplatesDuplicatePost } from '@/client/sdk.gen';
 import { Button } from "@/components/ui/button";
+import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { useAuth } from '@/lib/auth';
 import logger from '@/lib/logger';
 
@@ -24,7 +25,6 @@ export function DuplicateWorkflowTemplate({ id, title, description, serverAccess
     const handleDuplicate = async () => {
         setIsLoading(true);
         try {
-            // Use server-provided token if available, otherwise try to get from client auth
             let accessToken = serverAccessToken;
 
             if (!accessToken) {
@@ -52,7 +52,6 @@ export function DuplicateWorkflowTemplate({ id, title, description, serverAccess
 
             if (response.data) {
                 logger.info('Workflow created successfully from template');
-                // Redirect to the new workflow
                 router.push(`/workflow/${response.data.id}`);
             }
         } catch (error) {
@@ -63,20 +62,28 @@ export function DuplicateWorkflowTemplate({ id, title, description, serverAccess
     };
 
     return (
-        <div className="bg-white border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow p-4">
+        <Card className="flex flex-col justify-between p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-pop)]">
             <div>
-                <h3 className="text-lg font-semibold mb-2">{title}</h3>
-                <p className="text-gray-600 mb-4">{description}</p>
-                <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleDuplicate}
-                    disabled={isLoading}
-                >
-                    <Copy className="w-4 h-4 mr-2" />
-                    {isLoading ? 'Creating...' : 'Duplicate Workflow Template'}
-                </Button>
+                <div className="flex items-center gap-3 mb-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                        <LayoutTemplate className="h-5 w-5" />
+                    </div>
+                    <CardTitle className="text-base font-semibold">{title}</CardTitle>
+                </div>
+                <CardDescription className="text-small leading-relaxed text-muted-foreground mb-5">
+                    {description}
+                </CardDescription>
             </div>
-        </div>
+            <Button
+                variant="brand"
+                size="sm"
+                className="w-full"
+                onClick={handleDuplicate}
+                disabled={isLoading}
+            >
+                <Copy className="w-4 h-4 mr-2" />
+                {isLoading ? 'Instantiating...' : 'Use Template'}
+            </Button>
+        </Card>
     );
 }

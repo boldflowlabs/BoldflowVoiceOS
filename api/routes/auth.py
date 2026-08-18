@@ -123,7 +123,8 @@ async def login(
         raise HTTPException(status_code=403, detail="captcha_verification_failed")
 
     # Look up user by email
-    user = await db_client.get_user_by_email(request.email)
+    email = request.email.strip().lower()
+    user = await db_client.get_user_by_email(email)
     if not user or not user.password_hash:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 

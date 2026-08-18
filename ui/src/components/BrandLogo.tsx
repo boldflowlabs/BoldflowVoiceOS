@@ -1,20 +1,49 @@
 import { BRAND } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
-// Reusable brand wordmark. When BRAND.logoUrl is set, renders that image for
-// every variant. Otherwise falls back to a neutral text wordmark of BRAND.name
-// so no upstream logo is hardcoded. Pass `inverse` to force light-on-dark text
-// on an always-dark surface (e.g. the auth brand panel). Pass `mark` to render
-// a compact square mark (e.g. the app sidebar header). Height is controlled by
-// the caller via className (e.g. "h-7").
+export function BrandVoiceGlyph({
+  className,
+  size = 28,
+}: {
+  className?: string;
+  size?: number;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative flex shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs",
+        className,
+      )}
+      style={{ width: size, height: size }}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        className="h-3/5 w-3/5"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      >
+        <line x1="4" y1="10" x2="4" y2="14" />
+        <line x1="9" y1="6" x2="9" y2="18" />
+        <line x1="14" y1="3" x2="14" y2="21" />
+        <line x1="19" y1="8" x2="19" y2="16" />
+      </svg>
+    </div>
+  );
+}
+
+// Reusable clean brand wordmark
 export function BrandLogo({
   className,
   inverse = false,
   mark = false,
+  showTagline = false,
 }: {
   className?: string;
   inverse?: boolean;
   mark?: boolean;
+  showTagline?: boolean;
 }) {
   if (BRAND.logoUrl) {
     return (
@@ -23,30 +52,28 @@ export function BrandLogo({
     );
   }
 
-  // No logo configured — render a neutral text wordmark of the brand name.
   if (mark) {
-    return (
-      <span
-        className={cn(
-          "inline-flex select-none items-center font-semibold uppercase",
-          inverse ? "text-zinc-50" : "text-foreground",
-          className,
-        )}
-      >
-        {BRAND.name.charAt(0)}
-      </span>
-    );
+    return <BrandVoiceGlyph className={className} size={28} />;
   }
 
   return (
-    <span
-      className={cn(
-        "inline-flex select-none items-center font-semibold tracking-tight",
-        inverse ? "text-zinc-50" : "text-foreground",
-        className,
-      )}
-    >
-      {BRAND.name}
-    </span>
+    <div className={cn("inline-flex select-none items-center gap-2.5", className)}>
+      <BrandVoiceGlyph size={28} />
+      <div className="flex flex-col min-w-0">
+        <span
+          className={cn(
+            "text-sm font-semibold tracking-tight leading-none",
+            inverse ? "text-white" : "text-foreground",
+          )}
+        >
+          {BRAND.name}
+        </span>
+        {showTagline && (
+          <span className="text-[10px] font-medium tracking-wide uppercase text-muted-foreground mt-0.5">
+            Voice Platform
+          </span>
+        )}
+      </div>
+    </div>
   );
 }

@@ -15,6 +15,7 @@ import { CredentialSelector } from "@/components/http";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
+import { LockedSafeguardBanner } from "@/components/LockedSafeguardBanner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +44,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TOOLS_INTRODUCTION_DOC_URL } from "@/constants/documentation";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { useAuth } from "@/lib/auth";
 
 import {
@@ -57,6 +59,7 @@ import {
 
 export default function ToolsPage() {
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
+    const { isAdmin } = useIsAdmin();
     const router = useRouter();
 
     const [tools, setTools] = useState<ToolResponse[]>([]);
@@ -275,7 +278,7 @@ export default function ToolsPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "active":
-                return <Badge className="bg-green-500">Active</Badge>;
+                return <Badge variant="success">Active</Badge>;
             case "draft":
                 return <Badge variant="secondary">Draft</Badge>;
             case "archived":
@@ -288,9 +291,9 @@ export default function ToolsPage() {
     if (loading || !user) {
         return (
             <PageShell width="wide">
-                <div className="space-y-4">
-                    <Skeleton className="h-12 w-64" />
-                    <Skeleton className="h-64 w-96" />
+                <div className="space-y-4 animate-pulse">
+                    <Skeleton className="h-12 w-64 rounded-xl" />
+                    <Skeleton className="h-64 w-full rounded-2xl" />
                 </div>
             </PageShell>
         );
@@ -299,15 +302,38 @@ export default function ToolsPage() {
     return (
         <>
         <PageShell width="wide">
-            <div>
-                <PageHeader eyebrow="Workflows" title="Tools" />
-                <p className="text-body mt-2 max-w-2xl text-muted-foreground">
-                    Manage reusable tools that can be used across your workflows.{" "}
-                    <a href={TOOLS_INTRODUCTION_DOC_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline underline-offset-2 hover:text-foreground">
-                        Learn more <ExternalLink className="h-3 w-3" />
-                    </a>
-                </p>
-            </div>
+            <PageHeader
+                icon={Wrench}
+                eyebrow="Extensibility"
+                title="API Tools & Custom Functions"
+                subtitle={
+                    <span>
+                        Manage reusable HTTP webhooks, custom functions, and Model Context Protocol (MCP) servers for your agents.{" "}
+                        <a
+                            href={TOOLS_INTRODUCTION_DOC_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-0.5 text-foreground underline underline-offset-2 hover:text-primary transition-colors font-medium"
+                        >
+                            Learn more <ExternalLink className="h-3 w-3" />
+                        </a>
+                    </span>
+                }
+                actions={
+                    isAdmin ? (
+                        <Button variant="brand" onClick={() => setIsCreateDialogOpen(true)}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create Tool
+                        </Button>
+                    ) : undefined
+                }
+            />
+
+            <LockedSafeguardBanner
+                variant="card"
+                featureName="custom API tools and integrations"
+                className="mb-6"
+            />
 
             {error && (
                 <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive">
@@ -321,13 +347,17 @@ export default function ToolsPage() {
                                 <div>
                                     <CardTitle>Your Tools</CardTitle>
                                     <CardDescription>
-                                        Create and manage tools for your organization
+                                        {isAdmin
+                                            ? "Create and manage tools for your organization"
+                                            : "View custom functions and integrations configured for your organization"}
                                     </CardDescription>
                                 </div>
-                                <Button onClick={() => setIsCreateDialogOpen(true)}>
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Create Tool
-                                </Button>
+                                {isAdmin && (
+                                    <Button variant="brand" onClick={() => setIsCreateDialogOpen(true)}>
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        Create Tool
+                                    </Button>
+                                )}
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -365,7 +395,7 @@ export default function ToolsPage() {
                                     icon={Wrench}
                                     title={searchQuery ? "No tools match your search" : "No tools found"}
                                     action={
-                                        !searchQuery ? (
+                                        !searchQuery && isAdmin ? (
                                             <Button onClick={() => setIsCreateDialogOpen(true)}>
                                                 Create Your First Tool
                                             </Button>
@@ -409,16 +439,18 @@ export default function ToolsPage() {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={(e) =>
-                                                            handleDeleteTool(tool.tool_uuid, e)
-                                                        }
-                                                        className="text-destructive hover:text-destructive/90"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
+                                                    {isAdmin && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={(e) =>
+                                                                handleDeleteTool(tool.tool_uuid, e)
+                                                            }
+                                                            className="text-destructive hover:text-destructive/90"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -427,9 +459,11 @@ export default function ToolsPage() {
                                             icon={Wrench}
                                             title="No active tools"
                                             action={
-                                                <Button onClick={() => setIsCreateDialogOpen(true)}>
-                                                    Create Your First Tool
-                                                </Button>
+                                                isAdmin ? (
+                                                    <Button onClick={() => setIsCreateDialogOpen(true)}>
+                                                        Create Your First Tool
+                                                    </Button>
+                                                ) : undefined
                                             }
                                         />
                                     ) : null}

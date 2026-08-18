@@ -8,11 +8,13 @@ import {
   Eye,
   KeyRound,
   Loader2,
+  Lock,
   Phone,
   Plus,
   RefreshCw,
   RotateCcw,
   ShieldCheck,
+  Unlock,
   UserPlus,
 } from "lucide-react";
 import Link from "next/link";
@@ -98,7 +100,9 @@ import {
   listAdminAudit,
   NO_STORED_PASSWORD,
   recordClientPassword,
+  resetClientPassword,
   retryProvisionClient,
+  toggleClientLock,
   updateAdminProfile,
 } from "@/lib/adminClients";
 import { useAuth } from "@/lib/auth";
@@ -177,6 +181,38 @@ export default function ClientDetailPage() {
   const [retryOpen, setRetryOpen] = useState(false);
   const [retryPassword, setRetryPassword] = useState("");
   const [creating, setCreating] = useState(false);
+
+  // Reset login password
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [newPasswordVal, setNewPasswordVal] = useState("");
+
+  const onResetLoginPassword = async () => {
+    if (!newPasswordVal.trim()) return;
+    if (newPasswordVal.trim().length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const token = await getToken();
+      const res = await resetClientPassword(
+        token,
+        orgId,
+        newPasswordVal.trim(),
+        detail?.owner_email ?? undefined,
+      );
+      toast.success(res.message || "Password updated successfully");
+      setResetPasswordOpen(false);
+      setNewPasswordVal("");
+      await fetchAll();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update password",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // VoiceLink: password reveal / record
   const [revealed, setRevealed] = useState<ClientPasswordResult | null>(null);
@@ -543,6 +579,30 @@ export default function ClientDetailPage() {
     }
   };
 
+  const [togglingLock, setTogglingLock] = useState(false);
+
+  const onToggleLock = async () => {
+    if (!detail) return;
+    const nextLocked = detail.is_locked === false ? true : false;
+    setTogglingLock(true);
+    try {
+      const token = await getToken();
+      await toggleClientLock(token, orgId, nextLocked);
+      setDetail((prev) => (prev ? { ...prev, is_locked: nextLocked } : prev));
+      toast.success(
+        nextLocked
+          ? "Client account locked in view-only mode"
+          : "Client account unlocked for self-service editing"
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to toggle lock status"
+      );
+    } finally {
+      setTogglingLock(false);
+    }
+  };
+
   const onImpersonate = async () => {
     const providerId = detail?.owner_provider_id;
     if (!providerId) {
@@ -611,11 +671,46 @@ export default function ClientDetailPage() {
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <PlanBadge plan={detail.plan} overridden={planOverridden} />
                   <SuspendedBadge suspended={detail.suspended} />
+                  {detail.is_locked === false ? (
+                    <Badge className="bg-emerald-600 hover:bg-emerald-600 flex items-center gap-1 text-xs">
+                      <Unlock className="h-3 w-3" /> Unlocked (Editing Allowed)
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10 flex items-center gap-1 text-xs">
+                      <Lock className="h-3 w-3" /> Locked (View Only)
+                    </Badge>
+                  )}
                   {detail.features?.api && <Badge variant="outline">API</Badge>}
                   {detail.features?.mcp && <Badge variant="outline">MCP</Badge>}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  variant={detail.is_locked === false ? "outline" : "default"}
+                  size="sm"
+                  onClick={onToggleLock}
+                  disabled={togglingLock}
+                  className={detail.is_locked === false ? "border-amber-500 text-amber-600 hover:bg-amber-500/10" : "bg-emerald-600 hover:bg-emerald-700 text-white"}
+                >
+                  {togglingLock ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : detail.is_locked === false ? (
+                    <Lock className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Unlock className="mr-2 h-4 w-4" />
+                  )}
+                  {detail.is_locked === false ? "Lock (View Only)" : "Unlock for Editing"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setResetPasswordOpen(true);
+                    setNewPasswordVal("");
+                  }}
+                >
+                  <KeyRound className="mr-2 h-4 w-4" /> Reset Password
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -790,6 +885,55 @@ export default function ClientDetailPage() {
                       </CardContent>
                     </Card>
                   )}
+
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <ShieldCheck className="h-4 w-4 text-primary" />
+                        Client Access Mode & Safety Restrictions
+                      </CardTitle>
+                      <CardDescription>
+                        Control whether this client can edit workflow agents and settings or is restricted to view-only mode.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/60 bg-muted/20">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">
+                              {detail.is_locked === false ? "Self-Service Editing Enabled" : "View-Only Restriction Active"}
+                            </span>
+                            {detail.is_locked === false ? (
+                              <Badge className="bg-emerald-600 text-xs">Unlocked</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-xs">Locked</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {detail.is_locked === false
+                              ? "Client has full permission to create, edit, and publish voice agents, telephony trunks, AI models, and tools."
+                              : "Voice agents, canvas editing, telephony trunks, and AI models are locked in view-only mode to prevent campaign errors."}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={detail.is_locked === false ? "outline" : "default"}
+                          onClick={onToggleLock}
+                          disabled={togglingLock}
+                          className={detail.is_locked === false ? "border-amber-500 text-amber-600 hover:bg-amber-500/10 shrink-0" : "bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"}
+                        >
+                          {togglingLock ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : detail.is_locked === false ? (
+                            <Lock className="mr-2 h-4 w-4" />
+                          ) : (
+                            <Unlock className="mr-2 h-4 w-4" />
+                          )}
+                          {detail.is_locked === false ? "Lock (View Only)" : "Unlock for Editing"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </TabsContent>
 
@@ -1441,6 +1585,58 @@ export default function ClientDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reset client password */}
+      <Dialog
+        open={resetPasswordOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setResetPasswordOpen(false);
+            setNewPasswordVal("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset client password</DialogTitle>
+            <DialogDescription>
+              Set a new login password for {detail?.owner_email ?? "this client"}.
+              The client will be able to log in immediately with this new password.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="detail-reset-pwd">New password</Label>
+              <Input
+                id="detail-reset-pwd"
+                type="text"
+                value={newPasswordVal}
+                onChange={(e) => setNewPasswordVal(e.target.value)}
+                placeholder="Enter new password (min 6 characters)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setResetPasswordOpen(false);
+                setNewPasswordVal("");
+              }}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={onResetLoginPassword}
+              disabled={submitting || newPasswordVal.trim().length < 6}
+            >
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Update password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

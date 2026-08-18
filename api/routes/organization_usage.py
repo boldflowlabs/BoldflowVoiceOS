@@ -221,9 +221,13 @@ async def get_organization_overview(
     orgs alike (cost is never touched here).
     """
     try:
-        return await db_client.get_organization_overview(
+        overview = await db_client.get_organization_overview(
             user.selected_organization_id, period=period
         )
+        if user.is_superuser:
+            overview["totals"]["unlimited"] = True
+            overview["totals"]["credits_seconds_remaining"] = None
+        return overview
     except Exception as e:
         logger.error(f"Failed to build organization overview: {e}")
         raise HTTPException(status_code=500, detail=str(e))

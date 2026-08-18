@@ -1,16 +1,20 @@
-import { Bot } from 'lucide-react';
+import { Bot, Workflow } from 'lucide-react';
 import { Suspense } from 'react';
 
 import { getWorkflowsApiV1WorkflowFetchGet, listFoldersApiV1FolderGet } from '@/client/sdk.gen';
 import type { FolderResponse, WorkflowListResponse } from '@/client/types.gen';
 import { EmptyState } from '@/components/layout/EmptyState';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { PageShell } from '@/components/layout/PageShell';
+import { LockedSafeguardBanner } from '@/components/LockedSafeguardBanner';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreateWorkflowButton } from "@/components/workflow/CreateWorkflowButton";
 import { AgentFolderView } from '@/components/workflow/folders/AgentFolderView';
 import { CreateFolderButton } from '@/components/workflow/folders/CreateFolderButton';
 import { FolderSection } from '@/components/workflow/folders/FolderSection';
 import { UploadWorkflowButton } from '@/components/workflow/UploadWorkflowButton';
-import { getServerAccessToken, getServerAuthProvider } from '@/lib/auth/server';
+import { getServerAccessToken, getServerAuthProvider, getServerUser } from '@/lib/auth/server';
+import { BRAND } from '@/lib/brand';
 import logger from '@/lib/logger';
 
 import WorkflowLayout from "./WorkflowLayout";
@@ -22,13 +26,14 @@ async function WorkflowList() {
     const authProvider = await getServerAuthProvider();
     const accessToken = await getServerAccessToken();
 
+    const user = await getServerUser();
+    const isSuperuser = user ? ('is_superuser' in user ? Boolean(user.is_superuser) : false) : false;
+
     if (!accessToken) {
-        // If no token, user needs to sign in
         const { redirect } = await import('next/navigation');
         if (authProvider === 'stack') {
             redirect('/');
         } else {
-            // For OSS mode, this shouldn't happen as token is auto-generated
             return (
                 <Card className="rounded-2xl border border-destructive/30 bg-card shadow-[var(--shadow-card)]">
                     <CardContent className="p-8 text-center text-body text-destructive">
@@ -40,7 +45,6 @@ async function WorkflowList() {
     }
 
     try {
-        // Fetch both active and archived workflows in a single request
         const response = await getWorkflowsApiV1WorkflowFetchGet({
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
@@ -52,7 +56,6 @@ async function WorkflowList() {
 
         const allWorkflowData = response.data ? (Array.isArray(response.data) ? response.data : [response.data]) : [];
 
-        // Separate active and archived workflows
         const activeWorkflows = allWorkflowData
             .filter((w: WorkflowListResponse) => w.status === 'active')
             .sort((a: WorkflowListResponse, b: WorkflowListResponse) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -61,8 +64,6 @@ async function WorkflowList() {
             .filter((w: WorkflowListResponse) => w.status === 'archived')
             .sort((a: WorkflowListResponse, b: WorkflowListResponse) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-        // Fetch folders for grouping active agents. A failure here shouldn't
-        // break the page — fall back to an empty list (flat, ungrouped view).
         let folders: FolderResponse[] = [];
         try {
             const foldersResponse = await listFoldersApiV1FolderGet({
@@ -79,19 +80,29 @@ async function WorkflowList() {
             <>
                 {/* Active Workflows Section */}
                 <div className="mb-10">
-                    <h2 className="text-h3 mb-4 text-foreground">Active Agents</h2>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-h3 font-semibold text-foreground">Active Agents</h2>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            {activeWorkflows.length} {activeWorkflows.length === 1 ? 'Agent' : 'Agents'}
+                        </span>
+                    </div>
                     {activeWorkflows.length > 0 || folders.length > 0 ? (
                         <AgentFolderView workflows={activeWorkflows} folders={folders} />
                     ) : (
                         <EmptyState
                             icon={Bot}
                             title="No active agents yet"
-                            description="Create your first agent to get started."
+                            description={
+                                isSuperuser
+                                    ? "Deploy your first voice agent or start from an award-winning template."
+                                    : `Your conversational voice agents are configured and deployed by the ${BRAND.name} team.`
+                            }
+                            action={isSuperuser ? <CreateWorkflowButton /> : undefined}
                         />
                     )}
                 </div>
 
-                {/* Archived Section — collapsible, same design as the folder/Uncategorized sections */}
+                {/* Archived Section */}
                 {archivedWorkflows.length > 0 && (
                     <div className="mb-10">
                         <FolderSection kind="archived" workflows={archivedWorkflows} />
@@ -112,60 +123,47 @@ async function WorkflowList() {
 }
 
 async function PageContent() {
-
+    const user = await getServerUser();
+    const isSuperuser = user ? ('is_superuser' in user ? Boolean(user.is_superuser) : false) : false;
     const workflowList = await WorkflowList();
 
     return (
-        <div className="container mx-auto px-4 py-10">
-            {/* Your Workflows Section */}
-            <div className="mb-6">
-                <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-                    <div className="space-y-1">
-                        <p className="text-eyebrow text-primary">Voice Agents</p>
-                        <h1 className="text-h1 text-foreground">Your Agents</h1>
-                        <p className="text-body text-muted-foreground">
-                            Build, organize, and deploy your conversational AI agents.
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <UploadWorkflowButton />
-                        <CreateFolderButton />
-                        <CreateWorkflowButton />
-                    </div>
-                </div>
+        <PageShell width="wide">
+            <PageHeader
+                icon={Workflow}
+                eyebrow="Voice Studio"
+                title="Conversational Agents"
+                subtitle="View and monitor production-grade voice workflows assigned to your organization."
+                actions={
+                    isSuperuser ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                            <UploadWorkflowButton />
+                            <CreateFolderButton />
+                            <CreateWorkflowButton />
+                        </div>
+                    ) : undefined
+                }
+            />
+
+            <div className="mt-4 space-y-6">
+                <LockedSafeguardBanner
+                    variant="card"
+                    featureName="voice agent workflows"
+                />
                 {workflowList}
             </div>
-        </div>
+        </PageShell>
     );
 }
 
 function WorkflowsLoading() {
     return (
-        <div className="container mx-auto animate-pulse px-4 py-10">
-            {/* Header Loading */}
-            <div className="mb-8 flex items-end justify-between gap-4">
-                <div className="space-y-2">
-                    <div className="h-3 w-24 rounded bg-muted" />
-                    <div className="h-8 w-48 rounded-lg bg-muted" />
-                    <div className="h-4 w-72 rounded bg-muted/70" />
-                </div>
-                <div className="flex gap-2">
-                    <div className="h-10 w-28 rounded-md bg-muted" />
-                    <div className="h-10 w-28 rounded-md bg-muted" />
-                    <div className="h-10 w-32 rounded-md bg-muted" />
-                </div>
+        <PageShell width="wide">
+            <div className="animate-pulse space-y-6">
+                <div className="h-12 w-64 rounded-xl bg-muted" />
+                <div className="h-64 w-full rounded-2xl bg-muted/60" />
             </div>
-
-            {/* Active Agents Loading */}
-            <div className="mb-10">
-                <div className="mb-4 h-5 w-40 rounded bg-muted" />
-                <Card className="rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)]">
-                    <CardContent className="p-0">
-                        <div className="h-96 rounded-2xl bg-muted/60" />
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+        </PageShell>
     );
 }
 
@@ -176,6 +174,5 @@ export default function WorkflowPage() {
                 <PageContent />
             </Suspense>
         </WorkflowLayout>
-
     );
 }

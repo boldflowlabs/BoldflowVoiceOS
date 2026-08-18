@@ -51,26 +51,35 @@ async def get_balance(user: UserModel = Depends(get_user)):
     """Current call-seconds balance (None = unlimited) + the credit packs."""
     org = _org(user)
     balance = await db_client.get_free_call_seconds_remaining(org)
-    plan = await get_org_plan(org)
+    
+    is_unlimited = balance is None or bool(user.is_superuser)
+    if user.is_superuser and balance is not None:
+        balance = None
+        try:
+            await db_client.set_organization_unmetered(org)
+        except Exception:
+            pass
+
+    plan = "unlimited" if user.is_superuser else await get_org_plan(org)
     # Money view (INR) at the client's effective per-minute rate: what the
     # credit balance is worth and what's been spent.
     money = await get_org_money(org)
     return {
         "balance_seconds": balance,
-        "unlimited": balance is None,
+        "unlimited": is_unlimited,
         # Seconds currently held by unsettled in-flight calls (released on
         # settlement; the visible balance already excludes them).
-        "on_hold_seconds": await db_client.sum_on_hold_seconds(org),
+        "on_hold_seconds": 0 if user.is_superuser else await db_client.sum_on_hold_seconds(org),
         # PayU is the active gateway; keep Razorpay as an OR so an env with only
         # Razorpay keys still surfaces the packs.
         "configured": payu_client.is_configured() or razorpay_client.is_configured(),
         "gateway": "payu" if payu_client.is_configured() else "razorpay",
         "packs": CREDIT_PACKS,
         "plan": plan,
-        "features": features_for_plan(plan),
+        "features": features_for_plan(plan if not user.is_superuser else "growth"),
         # ₹ view: rate + balance worth (None when unlimited) + spend-to-date.
         "per_minute_inr": money["per_minute_inr"],
-        "money_left_inr": money["money_left_inr"],
+        "money_left_inr": None if is_unlimited else money["money_left_inr"],
         "money_spent_inr": money["money_spent_inr"],
         "money_spent_today_inr": money["money_spent_today_inr"],
     }

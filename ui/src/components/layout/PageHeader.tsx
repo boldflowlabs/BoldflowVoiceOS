@@ -1,12 +1,10 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 /**
- * Canonical page header: eyebrow + title + subtitle, with an optional icon
- * badge and a right-aligned actions slot. Every top-level page should render
- * exactly one of these so titles share the same size, weight, accent colour and
- * rhythm. Replaces the per-page mix of raw `text-3xl font-bold` headings and
- * `text-muted-foreground` eyebrows that made pages look like different apps.
+ * Clean production-grade page header with optional icon and action buttons.
  */
 export function PageHeader({
   eyebrow,
@@ -14,32 +12,38 @@ export function PageHeader({
   subtitle,
   icon: Icon,
   actions,
+  className,
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: ReactNode;
   icon?: LucideIcon;
   actions?: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex items-start gap-4">
+    <div className={cn("flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between", className)}>
+      <div className="flex items-start gap-3.5">
         {Icon && (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-accent text-accent-foreground shadow-[var(--shadow-card)]">
-            <Icon className="h-6 w-6" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-xs">
+            <Icon className="h-5 w-5" />
           </div>
         )}
         <div className="min-w-0">
-          {eyebrow && <p className="text-eyebrow text-primary">{eyebrow}</p>}
-          <h1 className="text-h1 mt-1">{title}</h1>
+          {eyebrow && (
+            <p className="text-[11px] font-semibold tracking-wider uppercase text-primary mb-1">
+              {eyebrow}
+            </p>
+          )}
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground leading-tight">{title}</h1>
           {subtitle && (
-            <p className="text-body mt-2 max-w-2xl text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-relaxed">
               {subtitle}
             </p>
           )}
         </div>
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 items-center gap-2 pt-0.5">{actions}</div>}
     </div>
   );
 }

@@ -19,11 +19,9 @@ export default function ThemeToggle({
   variant = "ghost",
   size = "icon"
 }: ThemeToggleProps) {
-  // Start with null to avoid hydration mismatch - theme is set by inline script in layout.tsx
   const [theme, setTheme] = useState<"light" | "dark" | null>(null);
 
   useEffect(() => {
-    // Read the current theme from the DOM (already set by inline script in layout.tsx)
     const isDark = document.documentElement.classList.contains("dark");
     setTheme(isDark ? "dark" : "light");
   }, []);
@@ -40,21 +38,20 @@ export default function ThemeToggle({
       variant={variant}
       size={size}
       className={cn(
-        showLabel && "w-full justify-start",
+        showLabel && "w-full justify-start gap-2",
         className
       )}
       onClick={toggleTheme}
+      title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
     >
-      <Sun className={cn(
-        "h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0",
-        showLabel && "absolute"
-      )} />
-      <Moon className={cn(
-        "h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100",
-        !showLabel && "absolute"
-      )} />
-      {showLabel && theme && (
-        <span className="ml-2">{theme === "light" ? "Light" : "Dark"} Mode</span>
+      <div className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+        <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-amber-500" />
+        <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-blue-400" />
+      </div>
+      {showLabel && (
+        <span className="text-xs font-medium">
+          {theme === "light" ? "Light Mode" : "Dark Mode"}
+        </span>
       )}
       <span className="sr-only">Toggle theme</span>
     </Button>

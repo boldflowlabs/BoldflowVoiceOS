@@ -5,29 +5,31 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[background,transform,box-shadow,filter,color] duration-200 ease-[var(--ease-out)] active:scale-[0.98] cursor-pointer disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-colors duration-150 cursor-pointer disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive select-none",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-[var(--shadow-card)] hover:brightness-[1.05] hover:shadow-[var(--shadow-pop)] active:brightness-95",
+          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 active:bg-primary/95",
         brand:
-          "text-[oklch(0.985_0.004_300)] bg-[linear-gradient(180deg,oklch(0.62_0.12_290),oklch(0.52_0.11_290))] shadow-[inset_0_1px_0_rgba(255,255,255,0.18),var(--shadow-card)] hover:brightness-[1.06]",
+          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 active:bg-primary/95 font-medium",
+        glass:
+          "border border-border bg-card/80 text-foreground shadow-xs hover:bg-muted hover:border-border active:bg-muted/80",
         destructive:
-          "bg-destructive text-white shadow-[var(--shadow-card)] hover:brightness-105 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/70",
+          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/30",
         outline:
-          "border bg-background shadow-[var(--shadow-card)] hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+          "border border-border bg-card text-foreground shadow-xs hover:bg-muted hover:text-foreground",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-[var(--shadow-card)] hover:bg-secondary/70",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+          "hover:bg-muted hover:text-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-10 px-5 py-2 has-[>svg]:px-4",
-        sm: "h-8 rounded-md gap-1.5 px-3.5 has-[>svg]:px-2.5",
-        lg: "h-11 rounded-lg px-6 has-[>svg]:px-4",
-        icon: "size-10",
+        default: "h-9.5 px-4 py-2 has-[>svg]:px-3.5",
+        sm: "h-8 rounded-lg gap-1.5 px-3 text-xs has-[>svg]:px-2.5",
+        lg: "h-11 rounded-xl px-5 text-base has-[>svg]:px-4",
+        icon: "size-9 rounded-xl",
       },
     },
     defaultVariants: {

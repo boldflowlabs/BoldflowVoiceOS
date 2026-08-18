@@ -15,6 +15,7 @@ import {
   Database,
   Home,
   Key,
+  Lock,
   LogOut,
   type LucideIcon,
   Megaphone,
@@ -33,6 +34,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useRef } from "react";
 
+import { BrandLogo } from "@/components/BrandLogo";
 import ThemeToggle from "@/components/ThemeSwitcher";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,7 +71,6 @@ import { useUserConfig } from "@/context/UserConfigContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
-import { BRAND } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 type SidebarNavItem = {
@@ -83,6 +84,8 @@ type SidebarNavItem = {
   superuserOnly?: boolean;
   /** Only visible if the org's plan includes this feature (superuser always). */
   requiresFeature?: "api" | "mcp" | "build_with_ai";
+  /** Shows a subtle lock icon when the user is a non-admin client account. */
+  lockedForClients?: boolean;
 };
 
 type SidebarNavSection = {
@@ -111,6 +114,7 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         title: "Build with AI",
         url: "/agent-builder",
         icon: Sparkles,
+        adminOnly: true,
         requiresFeature: "build_with_ai",
       },
       {
@@ -127,14 +131,14 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         title: "Models",
         url: "/model-configurations",
         icon: Brain,
-        // Client-visible on purpose: orgs pick their own voice/language/model
-        // (and paste their own provider keys) in the portal.
+        lockedForClients: true,
       },
       {
         title: "Telephony",
         url: "/telephony-configurations",
         icon: Phone,
         showsTelephonyWarning: true,
+        lockedForClients: true,
       },
       {
         title: "Phone Numbers",
@@ -145,6 +149,7 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         title: "Inbound",
         url: "/inbound",
         icon: PhoneIncoming,
+        lockedForClients: true,
       },
     ],
   },
@@ -155,6 +160,7 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         title: "WhatsApp",
         url: "/integrations/whatsapp",
         icon: MessageCircle,
+        lockedForClients: true,
       },
       {
         title: "CRM",
@@ -191,6 +197,7 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         title: "Tools",
         url: "/tools",
         icon: Wrench,
+        lockedForClients: true,
       },
       {
         title: "Developers",
@@ -310,26 +317,22 @@ export function AppSidebar() {
         asChild
         tooltip={tooltip}
         className={cn(
-          "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-          isItemActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+          "rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+          isItemActive
+            ? "bg-primary/10 text-primary font-semibold"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
         )}
       >
         <Link
           href={item.url}
           onClick={handleMobileNavClick}
-          className={cn("relative", isCollapsed && "justify-center")}
+          className={cn("relative flex items-center gap-2.5", isCollapsed && "justify-center")}
           translate="no"
         >
-          {isItemActive && !isCollapsed && (
-            <span
-              className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-cta"
-              aria-hidden
-            />
-          )}
           <Icon
             className={cn(
               "h-4 w-4 shrink-0",
-              isItemActive && "text-cta drop-shadow-[0_0_6px_rgba(240,170,70,0.8)]"
+              isItemActive ? "text-primary" : "text-muted-foreground"
             )}
           />
           <span
@@ -338,6 +341,15 @@ export function AppSidebar() {
           >
             {item.title}
           </span>
+          {!isAdmin && item.lockedForClients && (
+            <Lock
+              aria-label="View-only protection active"
+              className={cn(
+                "text-muted-foreground/50 shrink-0",
+                isCollapsed ? "absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5" : "ml-auto h-3 w-3"
+              )}
+            />
+          )}
           {showWarningDot && (
             isCollapsed ? (
               warningIndicator
@@ -412,22 +424,23 @@ export function AppSidebar() {
   );
 
   return (
-    <Sidebar collapsible="icon" variant="floating" className="app-sidebar-dock py-4">
+    <Sidebar collapsible="icon" className="border-r border-border bg-sidebar">
       <SidebarHeader className="px-2 py-3 notranslate" translate="no">
         <div className="flex items-center justify-between">
           <div className={cn("flex items-center gap-2", isCollapsed && "hidden")}>
             <Link
-              href="/"
-              className="notranslate flex items-center gap-2 px-1"
+              href="/home"
+              className="notranslate flex items-center px-1"
               translate="no"
             >
-              {BRAND.logoUrl && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={BRAND.logoUrl} alt={BRAND.name} className="h-6 w-auto" />
-              )}
-              {BRAND.name}
+              <BrandLogo showTagline />
             </Link>
           </div>
+          {isCollapsed && (
+            <div className="mx-auto mb-2">
+              <BrandLogo mark />
+            </div>
+          )}
 
           <SidebarTrigger className={cn("hover:bg-sidebar-accent", isCollapsed && "mx-auto")}>
             {isCollapsed ? (

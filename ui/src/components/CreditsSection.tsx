@@ -8,7 +8,7 @@ import { client } from "@/client/client.gen";
 import { Button } from "@/components/ui/button";
 import { useLeadForms } from "@/context/LeadFormsContext";
 import { useAuth } from "@/lib/auth";
-import { BOOK_A_MEETING_URL } from "@/lib/brand";
+import { BOOK_A_MEETING_URL, BRAND } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 interface PackFeatures {
@@ -167,23 +167,23 @@ export function CreditsSection() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-card)]">
+      <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-small text-muted-foreground">Current balance</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Available Balance</p>
           {!data.unlimited && (
-            <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+            <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
               {planLabel} plan
             </span>
           )}
         </div>
-        <p className="mt-1 text-3xl font-semibold tabular text-foreground">
+        <p className="mt-2 text-3xl font-bold tabular text-foreground tracking-tight">
           {data.unlimited
             ? "Unlimited"
             : `${minutes?.toLocaleString()} credits`}
         </p>
         {/* ₹ worth of the remaining balance at the client's effective rate. */}
         {!data.unlimited && data.money_left_inr != null && (
-          <p className="mt-0.5 text-sm text-muted-foreground tabular">
+          <p className="mt-1 text-xs font-medium text-muted-foreground tabular">
             ≈ ₹{data.money_left_inr.toLocaleString("en-IN")}
             {data.per_minute_inr != null &&
               ` at ₹${data.per_minute_inr.toLocaleString("en-IN")}/min`}
@@ -191,12 +191,12 @@ export function CreditsSection() {
         )}
         {!data.unlimited && (
           <p className="mt-1 text-xs text-muted-foreground">
-            1 credit = 1 minute of calling.
+            1 credit = 1 minute of voice calling.
           </p>
         )}
         {/* Today's spend (calendar day, IST), with all-time as a secondary. */}
         {!data.unlimited && data.money_spent_today_inr != null && (
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-3 text-xs text-muted-foreground pt-2 border-t border-border">
             Spent today:{" "}
             <span className="font-semibold tabular text-foreground">
               ₹{data.money_spent_today_inr.toLocaleString("en-IN")}
@@ -210,27 +210,26 @@ export function CreditsSection() {
           </p>
         )}
         {!data.unlimited && (data.on_hold_seconds ?? 0) > 0 && (
-          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 font-medium">
             On hold: {(Math.round(((data.on_hold_seconds ?? 0) / 60) * 10) / 10).toLocaleString()}{" "}
-            credits — each active call briefly holds up to 10 credits; the
-            unused part returns when the call ends.
+            credits — active calls reserve credits; unused balance returns automatically.
           </p>
         )}
       </div>
 
       {data.unlimited ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Your account has unlimited calling — no top-up needed.
         </p>
       ) : !data.configured ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Top-ups aren&apos;t enabled yet. Once the payment gateway is connected
           you&apos;ll be able to buy more minutes here.
         </p>
       ) : (
         <div>
           <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-label font-semibold text-foreground">
+            <h2 className="text-sm font-semibold text-foreground">
               Top up your credits
             </h2>
             <span className="text-xs text-muted-foreground">
@@ -245,10 +244,10 @@ export function CreditsSection() {
                 <div
                   key={pack.id}
                   className={cn(
-                    "relative flex flex-col rounded-2xl border bg-card p-5 text-card-foreground shadow-[var(--shadow-card)] transition-[box-shadow,transform,border-color] duration-200 ease-[var(--ease-out)]",
+                    "relative flex flex-col rounded-xl border bg-card p-5 text-card-foreground shadow-xs transition-shadow",
                     isHighlight
-                      ? "border-primary/50 ring-1 ring-primary/20 shadow-[var(--shadow-pop)]"
-                      : "border-border/60 hover:-translate-y-0.5 hover:shadow-[var(--shadow-pop)]",
+                      ? "border-primary ring-1 ring-primary/20 shadow-sm"
+                      : "border-border hover:border-border/80 hover:shadow-sm",
                   )}
                 >
                   {isHighlight && (
@@ -356,10 +355,10 @@ export function CreditsSection() {
             <p className="mt-1 text-xs text-muted-foreground">
               Talk to us:{" "}
               <a
-                href="mailto:hardikagarwal@autosysai.dev?subject=Enterprise%20plan%20—%20Auto4You"
+                href={`mailto:${BRAND.supportEmail}?subject=Enterprise%20plan%20—%20${encodeURIComponent(BRAND.name)}`}
                 className="underline underline-offset-4 hover:text-foreground"
               >
-                hardikagarwal@autosysai.dev
+                {BRAND.supportEmail}
               </a>
             </p>
           </div>

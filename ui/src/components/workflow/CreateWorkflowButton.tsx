@@ -84,10 +84,10 @@ export function CreateWorkflowButton() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button disabled={isCreating}>
+                <Button variant="brand" disabled={isCreating}>
                     <PlusIcon className="w-4 h-4" />
                     {isCreating ? 'Creating...' : 'Create Agent'}
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown className="w-4 h-4 ml-0.5 opacity-80" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

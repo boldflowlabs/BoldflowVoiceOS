@@ -1,9 +1,12 @@
 'use client';
 
+import { Bot, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost } from '@/client/sdk.gen';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { PageShell } from '@/components/layout/PageShell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -50,7 +53,6 @@ export default function CreateWorkflowPage() {
         try {
             const accessToken = await getAccessToken();
 
-            // Call the API to create workflow from template
             const response = await createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost({
                 body: {
                     call_type: callType,
@@ -80,104 +82,103 @@ export default function CreateWorkflowPage() {
     };
 
     return (
-        <div className="min-h-screen">
-            <div className="container mx-auto px-4 py-8 max-w-2xl">
-                <div className="mb-6">
-                    <h1 className="text-h1 mb-2">Create Voice Agent</h1>
-                    <p className="text-muted-foreground">
-                        Tell us about your use case and we&apos;ll create a customized voice agent for you
-                    </p>
-                </div>
+        <PageShell width="narrow">
+            <PageHeader
+                icon={Bot}
+                eyebrow="Quick Setup"
+                title="Create Voice Agent"
+                subtitle="Tell us about your use case and we'll scaffold a customized conversational workflow for you."
+            />
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Agent Details</CardTitle>
-                        <CardDescription>
-                            Configure your voice agent settings
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="call-type">Call Type</Label>
-                            <Select value={callType} onValueChange={(value) => setCallType(value as 'inbound' | 'outbound')}>
-                                <SelectTrigger id="call-type">
-                                    <SelectValue placeholder="Select type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="inbound">
-                                        Inbound (Users call AI)
-                                    </SelectItem>
-                                    <SelectItem value="outbound">
-                                        Outbound (AI calls users)
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <p className="text-sm text-muted-foreground">
-                                Choose whether users will call your AI or your AI will call users
-                            </p>
-                        </div>
+            <Card className="rounded-2xl border-border/70 bg-card shadow-xs">
+                <CardHeader>
+                    <CardTitle>Agent Parameters</CardTitle>
+                    <CardDescription>
+                        Configure call direction, conversational objectives, and behavior rules
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                    <div className="space-y-2">
+                        <Label htmlFor="call-type">Call Direction</Label>
+                        <Select value={callType} onValueChange={(value) => setCallType(value as 'inbound' | 'outbound')}>
+                            <SelectTrigger id="call-type" className="rounded-xl">
+                                <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                                <SelectItem value="inbound">
+                                    Inbound (Users call AI Agent)
+                                </SelectItem>
+                                <SelectItem value="outbound">
+                                    Outbound (AI Agent calls Users)
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                            Choose whether users will dial into your agent or your agent initiates outreach
+                        </p>
+                    </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="use-case">Use Case</Label>
-                            <Input
-                                id="use-case"
-                                placeholder="e.g., Lead Qualification, HR Screening, Customer Support"
-                                value={useCase}
-                                onChange={(e) => setUseCase(e.target.value)}
-                            />
-                            <p className="text-sm text-muted-foreground">
-                                Describe the primary purpose of your voice agent
-                            </p>
-                        </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="use-case">Use Case / Title</Label>
+                        <Input
+                            id="use-case"
+                            placeholder="e.g., Real Estate Lead Qualification, Doctor Appointment Booking"
+                            value={useCase}
+                            onChange={(e) => setUseCase(e.target.value)}
+                            className="rounded-xl"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Describe the primary purpose of your voice agent
+                        </p>
+                    </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="activity-description">Activity Description</Label>
-                            <Textarea
-                                id="activity-description"
-                                placeholder="Describe briefly what your voice agent will do (e.g., Qualify leads for real estate, Screen candidates for roles, Handle customer support). This will be a prompt to an LLM."
-                                value={activityDescription}
-                                onChange={(e) => setActivityDescription(e.target.value)}
-                                className="min-h-[100px]"
-                            />
-                            <p className="text-sm text-muted-foreground">
-                                This description will be used to generate the AI prompt for your voice agent
-                            </p>
-                        </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="activity-description">Agent Instructions &amp; Prompt Context</Label>
+                        <Textarea
+                            id="activity-description"
+                            placeholder="Describe what your voice agent should say, qualify, questions to ask, and rules to follow..."
+                            value={activityDescription}
+                            onChange={(e) => setActivityDescription(e.target.value)}
+                            className="min-h-[120px] rounded-xl resize-none"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            This description will seed the LLM system prompt and flow state graph
+                        </p>
+                    </div>
 
-                        {error && (
-                            <p className="text-sm text-red-500">{error}</p>
-                        )}
+                    {error && (
+                        <p className="text-sm font-medium text-destructive">{error}</p>
+                    )}
 
-                        <div className="pt-4">
-                            <Button
-                                onClick={handleCreateWorkflow}
-                                disabled={isLoading || !useCase || !activityDescription}
-                                className="w-full"
-                            >
-                                {isLoading ? 'Creating...' : 'Create Agent'}
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                    <div className="pt-2">
+                        <Button
+                            variant="brand"
+                            size="lg"
+                            onClick={handleCreateWorkflow}
+                            disabled={isLoading || !useCase || !activityDescription}
+                            className="w-full shadow-md"
+                        >
+                            {isLoading ? 'Synthesizing Agent...' : 'Generate Voice Agent'}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Loading Overlay */}
             {isLoading && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <Card className="w-full max-w-md p-8">
-                        <div className="flex flex-col items-center space-y-6">
-                            {/* Animated spinner */}
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md">
+                    <Card className="w-full max-w-md p-8 text-center rounded-2xl border-primary/20 bg-card/90 shadow-2xl">
+                        <div className="flex flex-col items-center space-y-5">
                             <div className="relative">
-                                <div className="w-16 h-16 border-4 border-muted rounded-full"></div>
-                                <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-t-primary rounded-full animate-spin"></div>
+                                <div className="h-16 w-16 rounded-full border-4 border-primary/20" />
+                                <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-transparent border-t-primary animate-spin" />
                             </div>
-
-                            <div className="text-center space-y-2">
-                                <h3 className="text-lg font-semibold">
-                                    Creating Your Workflow
+                            <div className="space-y-1.5">
+                                <h3 className="text-lg font-bold text-foreground">
+                                    Scaffolding Voice Agent
                                 </h3>
-                                <p className="text-sm text-muted-foreground max-w-xs">
-                                    We&apos;re setting up your voice agent with your specifications. This will just take a moment...
+                                <p className="text-xs text-muted-foreground max-w-xs">
+                                    Setting up telephony nodes, LLM configuration, and voice synthesis...
                                 </p>
                             </div>
                         </div>
@@ -187,38 +188,37 @@ export default function CreateWorkflowPage() {
 
             {/* Success Modal */}
             <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-                <DialogContent className="sm:max-w-lg">
+                <DialogContent className="sm:max-w-lg rounded-2xl border-border/80 bg-card/95 backdrop-blur-xl">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Workflow Created Successfully!
-                        </DialogTitle>
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                <CheckCircle2 className="h-5 w-5" />
+                            </div>
+                            <DialogTitle className="text-lg font-bold">Workflow Created Successfully!</DialogTitle>
+                        </div>
                         <DialogDescription asChild>
-                            <div className="mt-4 space-y-3">
+                            <div className="mt-4 space-y-3 text-sm text-muted-foreground leading-relaxed">
                                 <p>
-                                    A voice agent workflow has been generated for your use case, with some artificial data and sample actions.
+                                    A tailored voice agent workflow has been synthesized with initial state transitions and speech guidelines.
                                 </p>
                                 <p>
-                                    The voice bot is pre-set to communicate in English with an American accent.
-                                </p>
-                                <p>
-                                    Next steps would be to test the voice bot in the editor, and then modify it to suit your use case.
+                                    You can now immediately simulate test calls in the browser simulator, fine-tune the prompt, and attach telephony phone numbers.
                                 </p>
                             </div>
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="mt-6">
                         <Button
+                            variant="brand"
+                            size="lg"
                             onClick={handleModalContinue}
                             className="w-full"
                         >
-                            Open and Test Agent
+                            Open Editor &amp; Test Live
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </PageShell>
     );
 }

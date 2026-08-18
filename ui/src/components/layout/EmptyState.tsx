@@ -4,9 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Uniform empty state for list/table pages. Replaces the ad-hoc "nothing here"
- * copy each page rolled on its own. An empty screen is an invitation to act —
- * give it an icon, a plain-language line, and (ideally) the primary action.
+ * Uniform empty state for list/table pages with glowing acoustic icon aura.
  */
 export function EmptyState({
   icon: Icon,
@@ -24,22 +22,26 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/50 px-6 py-16 text-center",
+        "relative flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-card/40 backdrop-blur-md px-6 py-16 text-center shadow-xs transition-all duration-200 overflow-hidden",
         className,
       )}
     >
+      {/* Background ambient bloom */}
+      <div className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 h-32 w-64 rounded-full bg-primary/10 blur-2xl" />
+
       {Icon && (
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+        <div className="relative mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/25 bg-gradient-to-b from-primary/15 to-primary/5 text-primary shadow-sm">
           <Icon className="h-6 w-6" />
+          <div className="absolute -inset-1 rounded-2xl bg-primary/15 blur-sm -z-10 animate-pulse-glow" />
         </div>
       )}
-      <p className="text-label text-foreground">{title}</p>
+      <p className="text-h3 font-semibold text-foreground">{title}</p>
       {description && (
-        <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-2 max-w-md text-body leading-relaxed text-muted-foreground">
           {description}
         </p>
       )}
-      {action && <div className="mt-6">{action}</div>}
+      {action && <div className="mt-6 flex items-center justify-center gap-3">{action}</div>}
     </div>
   );
 }

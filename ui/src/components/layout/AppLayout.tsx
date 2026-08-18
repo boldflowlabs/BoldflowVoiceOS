@@ -1,61 +1,15 @@
 "use client";
 
-import { AlertTriangle, Menu, RefreshCw } from "lucide-react";
-import Link from "next/link";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { usePathname } from "next/navigation";
-import posthog from "posthog-js";
 import React, { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
-import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
-import { PostHogEvent } from "@/constants/posthog-events";
 import { useAppConfig } from "@/context/AppConfigContext";
 import { LeadFormsProvider } from "@/context/LeadFormsContext";
-import { BRAND } from "@/lib/brand";
 
-import { OnboardingSurvey } from "../onboarding/OnboardingSurvey";
-import { AppSidebar } from "./AppSidebar";
-import { GitHubStarBadge } from "./GitHubStarBadge";
 import { ImpersonationBanner } from "./ImpersonationBanner";
-
-function AppHeader() {
-  const { toggleSidebar } = useSidebar();
-
-  return (
-    <header className="material sticky top-0 z-50 flex items-center justify-between border-b border-border/60 px-4 py-2.5 sm:px-6">
-      <div className="flex items-center gap-2.5">
-        <Button variant="ghost" size="icon" onClick={toggleSidebar} aria-label="Open menu" className="md:hidden">
-          <Menu className="h-5 w-5" />
-        </Button>
-        <Link
-          href="/"
-          className="text-lg font-bold tracking-tight transition-colors duration-200 hover:text-primary md:hidden"
-        >
-          {BRAND.name}
-        </Link>
-      </div>
-      <div className="flex items-center gap-3">
-        {BRAND.showCommunityLinks && (
-        <Button variant="ghost" size="sm" asChild>
-          <a
-            href="https://join.slack.com/t/dograh-community/shared_invite/zt-3zjb5vwvl-j7hRz3_F1SOn5cH~jm5f5g"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => posthog.capture(PostHogEvent.SLACK_COMMUNITY_CLICKED, { source: "app_header" })}
-            className="flex items-center gap-2"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" />
-            </svg>
-            <span className="hidden sm:inline">Join Slack</span>
-          </a>
-        </Button>
-        )}
-        <GitHubStarBadge source="app_header" />
-      </div>
-    </header>
-  );
-}
+import { TopNavbar } from "./TopNavbar";
 
 function BackendStatusBanner() {
   const { config, loading, refresh } = useAppConfig();
@@ -72,24 +26,24 @@ function BackendStatusBanner() {
   return (
     <div
       role="alert"
-      className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+      className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-amber-800 dark:text-amber-200"
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">Backend connection failed</p>
-            <p className="break-words text-sm">{message}</p>
+      <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="min-w-0 flex items-center gap-2 flex-wrap">
+            <p className="text-xs font-semibold">Backend Offline:</p>
+            <p className="break-words text-xs opacity-90">{message}</p>
           </div>
         </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => void refresh()}
+          onClick={() => refresh()}
           disabled={loading}
-          className="h-8 shrink-0 border-amber-400 bg-transparent text-amber-950 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-100 dark:hover:bg-amber-900/40"
+          className="self-start text-xs h-7 sm:self-auto border-amber-500/30 hover:bg-amber-500/10"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className={`mr-1.5 h-3 w-3 ${loading ? "animate-spin" : ""}`} />
           Retry
         </Button>
       </div>
@@ -97,77 +51,32 @@ function BackendStatusBanner() {
   );
 }
 
-interface AppLayoutProps {
-  children: ReactNode;
-  headerActions?: ReactNode;
-  stickyTabs?: ReactNode;
-}
-
-const AppLayout: React.FC<AppLayoutProps> = ({
-  children,
-  headerActions,
-  stickyTabs,
-}) => {
+export function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
-  // Check if current route should have sidebar
-  // Hide sidebar for root (/), /handler routes (Stack Auth routes), and /auth routes
-  const shouldShowSidebar = pathname !== "/" && !pathname.startsWith("/handler") && !pathname.startsWith("/auth");
+  const isAuthOrAdmin =
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/auth") ||
+    pathname?.startsWith("/handler") ||
+    pathname === "/login" ||
+    pathname === "/signup";
 
-  // Only match the exact editor page /workflow/<id>, not sub-routes like /workflow/<id>/runs
-  const isWorkflowEditor = /^\/workflow\/\d+$/.test(pathname);
+  const isWorkflowBuilder = pathname?.startsWith("/workflow/");
 
-  // Always render SidebarProvider to keep the component tree shape consistent
-  // across route changes (avoids React hooks ordering violations during navigation).
+  if (isAuthOrAdmin) {
+    return <>{children}</>;
+  }
+
   return (
-    <SidebarProvider defaultOpen>
-      {shouldShowSidebar ? (
-        <LeadFormsProvider>
-          <div className="flex min-h-screen w-full">
-            <OnboardingSurvey />
-            <AppSidebar />
-            <SidebarInset className="flex-1">
-              <BackendStatusBanner />
-              <ImpersonationBanner />
-              {!isWorkflowEditor && <AppHeader />}
-              {/* Optional header area for specific pages */}
-              {headerActions && (
-                <header className="sticky top-0 z-50 w-full border-b bg-background">
-                  <div className="container mx-auto px-4 py-4">
-                    <div className="flex items-center justify-center">
-                      {headerActions}
-                    </div>
-                  </div>
-                </header>
-              )}
-
-              {/* Optional sticky tabs */}
-              {stickyTabs && (
-                <div className="material sticky top-0 z-40 border-b">
-                  <div className="container mx-auto px-4">
-                    <div className="flex items-center justify-center py-2">
-                      {stickyTabs}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Main content area */}
-              <main className="app-surface flex-1">
-                {children}
-              </main>
-            </SidebarInset>
-          </div>
-        </LeadFormsProvider>
-      ) : (
-        <div className="app-surface w-full flex-1">
-          <BackendStatusBanner />
-          <ImpersonationBanner />
-          {children}
-        </div>
-      )}
-    </SidebarProvider>
+    <LeadFormsProvider>
+      <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+        {!isWorkflowBuilder && <TopNavbar />}
+        {!isWorkflowBuilder && <BackendStatusBanner />}
+        {!isWorkflowBuilder && <ImpersonationBanner />}
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
+    </LeadFormsProvider>
   );
-};
+}
 
 export default AppLayout;

@@ -198,6 +198,21 @@ class UserClient(BaseDBClient):
             await session.execute(stmt)
             await session.commit()
 
+    async def update_user_password(self, user_id: int, password_hash: str) -> None:
+        """Update the user's password hash."""
+        async with self.async_session() as session:
+            from sqlalchemy import update
+
+            stmt = (
+                update(UserModel)
+                .where(UserModel.id == user_id)
+                .values(password_hash=password_hash)
+            )
+            result = await session.execute(stmt)
+            if result.rowcount == 0:
+                raise ValueError(f"User with ID {user_id} not found")
+            await session.commit()
+
     async def update_user_superuser(self, user_id: int, is_superuser: bool) -> None:
         """Update the user's superuser flag."""
         async with self.async_session() as session:

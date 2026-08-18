@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Code, ExternalLink, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Code, ExternalLink, Loader2, Save, ShieldCheck } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -26,6 +26,7 @@ import {
     type ToolParameter,
     validateUrl,
 } from "@/components/http";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -40,8 +41,10 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { TOOL_DOCUMENTATION_URLS } from "@/constants/documentation";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
+import { BRAND } from "@/lib/brand";
 
 import {
     createMcpDefinition,
@@ -70,6 +73,7 @@ function normalizeParameterType(value: string | null | undefined): ParameterType
 export default function ToolDetailPage() {
     const { toolUuid } = useParams<{ toolUuid: string }>();
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
+    const { isAdmin } = useIsAdmin();
     const router = useRouter();
 
     const [tool, setTool] = useState<ToolResponse | null>(null);
@@ -618,6 +622,21 @@ const data = await response.json();`;
                         </div>
                     </div>
 
+                    {!isAdmin && (
+                        <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-foreground flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
+                                <div>
+                                    <p className="font-medium">Managed Tool Configuration</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        This tool configuration and its execution parameters are managed and secured by {BRAND.name}.
+                                    </p>
+                                </div>
+                            </div>
+                            <Badge variant="outline" className="text-xs">Protected</Badge>
+                        </div>
+                    )}
+
                     {isBuiltinTool ? (
                         <BuiltinToolConfig
                             name={name}
@@ -778,21 +797,23 @@ const data = await response.json();`;
                         </div>
                     )}
 
-                    <div className="flex justify-end mt-6">
-                        <Button onClick={handleSave} disabled={isSaving}>
-                            {isSaving ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="w-4 h-4 mr-2" />
-                                    Save
-                                </>
-                            )}
-                        </Button>
-                    </div>
+                    {isAdmin && (
+                        <div className="flex justify-end mt-6">
+                            <Button onClick={handleSave} disabled={isSaving}>
+                                {isSaving ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="w-4 h-4 mr-2" />
+                                        Save
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </div>
 

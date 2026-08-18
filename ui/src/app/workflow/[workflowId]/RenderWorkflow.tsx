@@ -6,7 +6,7 @@ import {
     Panel,
     ReactFlow,
 } from "@xyflow/react";
-import { BrushCleaning, Maximize2, Minus, Plus, Settings } from 'lucide-react';
+import { BrushCleaning, Mail, Maximize2, Minus, Plus, Settings, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -16,10 +16,13 @@ import type { ModelConfigurationDefaultsV2 } from "@/components/AIModelConfigura
 import { useNodeSpecs } from "@/components/flow/renderer";
 import { FlowEdge, FlowNode, NodeType } from "@/components/flow/types";
 import { HireExpertNudge } from "@/components/lead-forms/HireExpertNudge";
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOnboarding } from '@/context/OnboardingContext';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { BRAND } from '@/lib/brand';
 import { WorkflowConfigurations } from '@/types/workflow-configurations';
 
 import AddNodePanel from "../../../components/flow/AddNodePanel";
@@ -480,6 +483,9 @@ function RenderWorkflow({
         [],
     );
 
+    const { isAdmin } = useIsAdmin();
+    const isReadOnly = isViewingHistoricalVersion || !isAdmin;
+
     // Memoize the context value to prevent unnecessary re-renders
     const workflowContextValue = useMemo(() => ({
         saveWorkflow: guardedSaveWorkflow,
@@ -487,14 +493,14 @@ function RenderWorkflow({
         tools,
         updateTool,
         recordings,
-        readOnly: isViewingHistoricalVersion,
+        readOnly: isReadOnly,
     }), [
         guardedSaveWorkflow,
         documents,
         tools,
         updateTool,
         recordings,
-        isViewingHistoricalVersion,
+        isReadOnly,
     ]);
 
     return (
@@ -515,7 +521,7 @@ function RenderWorkflow({
                     onTestAgentClick={handleOpenTester}
                     onHistoryClick={handleOpenVersionPanel}
                     activeVersionLabel={activeVersionLabel}
-                    isViewingHistoricalVersion={isViewingHistoricalVersion}
+                    isViewingHistoricalVersion={isReadOnly}
                     onBackToDraft={handleBackToDraft}
                     hasDraft={hasDraft}
                     onPublished={handlePublished}
@@ -525,6 +531,35 @@ function RenderWorkflow({
                     modelConfigurationDefaults={modelConfigurationDefaults}
                     organizationModelConfiguration={organizationModelConfiguration}
                 />
+
+                {!isAdmin && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs font-medium text-amber-950 dark:text-amber-100 gap-2">
+                        <div className="flex items-center gap-2">
+                            <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                            <span>
+                                <strong>Managed Voice Agent:</strong> This workflow is safely managed by {BRAND.name}. Editing is restricted to prevent live errors. Contact {BRAND.name} if you need adjustments or self-editing access.
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                            <Badge variant="outline" className="bg-background/80 text-[10px] font-bold text-amber-600 dark:text-amber-400 border-amber-500/30">
+                                View Only
+                            </Badge>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 text-[11px] px-2.5 border-amber-500/40 bg-background/80 hover:bg-background text-foreground"
+                                asChild
+                            >
+                                <a
+                                    href={`mailto:${BRAND.supportEmail}?subject=${encodeURIComponent(`Workflow Edit Request — ${workflowName}`)}&body=${encodeURIComponent(`Hello ${BRAND.name} Support,\n\nI would like to request changes or self-editing permissions for the workflow "${workflowName}" (ID: ${workflowId}).\n\nThank you!`)}`}
+                                >
+                                    <Mail className="w-3 h-3 mr-1 text-amber-600 dark:text-amber-400" />
+                                    Contact {BRAND.name}
+                                </a>
+                            </Button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Workflow Canvas */}
                 <div className="flex-1 min-h-0">
@@ -538,7 +573,7 @@ function RenderWorkflow({
                                 onEdgesChange={onEdgesChange}
                                 nodeTypes={nodeTypes}
                                 edgeTypes={edgeTypes}
-                                onConnect={isViewingHistoricalVersion ? undefined : onConnect}
+                                onConnect={isReadOnly ? undefined : onConnect}
                                 minZoom={0.4}
                                 onInit={(instance) => {
                                     rfInstance.current = instance;
@@ -549,11 +584,11 @@ function RenderWorkflow({
                                 }}
                                 defaultEdgeOptions={defaultEdgeOptions}
                                 defaultViewport={initialFlow?.viewport}
-                                nodesDraggable={!isViewingHistoricalVersion}
-                                nodesConnectable={!isViewingHistoricalVersion}
-                                edgesReconnectable={!isViewingHistoricalVersion}
+                                nodesDraggable={!isReadOnly}
+                                nodesConnectable={!isReadOnly}
+                                edgesReconnectable={!isReadOnly}
                                 zoomOnDoubleClick={false}
-                                deleteKeyCode={isViewingHistoricalVersion ? null : "Backspace"}
+                                deleteKeyCode={isReadOnly ? null : "Backspace"}
                             >
                                 <Background
                                     variant={BackgroundVariant.Dots}
@@ -562,8 +597,8 @@ function RenderWorkflow({
                                     color="#94a3b8"
                                 />
 
-                                {/* Top-right controls - vertical layout (hidden when viewing history) */}
-                                {!isViewingHistoricalVersion && (
+                                {/* Top-right controls - vertical layout (hidden when viewing history or in read-only mode) */}
+                                {!isReadOnly && (
                                     <Panel position="top-right">
                                         <TooltipProvider>
                                             <div className="flex flex-col gap-2">

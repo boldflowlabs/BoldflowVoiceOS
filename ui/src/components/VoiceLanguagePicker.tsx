@@ -421,14 +421,17 @@ export function VoiceLanguagePicker({
     model,
     voice,
     language,
-    voiceOptions,
-    languageOptions,
+    voiceOptions = [],
+    languageOptions = [],
     onVoiceChange,
     onLanguageChange,
     disabled,
 }: VoiceLanguagePickerProps) {
+    const safeVoiceOptions = Array.isArray(voiceOptions) ? voiceOptions : [];
+    const safeLanguageOptions = Array.isArray(languageOptions) ? languageOptions : [];
+
     const voiceNotInOptions =
-        Boolean(voice) && voiceOptions.length > 0 && !voiceOptions.includes(voice);
+        Boolean(voice) && safeVoiceOptions.length > 0 && !safeVoiceOptions.includes(voice);
     const useCatalogModal = !isRealtime && CATALOG_TTS_PROVIDERS.includes(provider);
     const useRichRealtimePicker = isRealtime && supportsRealtimeVoiceCatalog(provider);
 
@@ -444,14 +447,14 @@ export function VoiceLanguagePicker({
                 />
             );
         }
-        if (voiceOptions.length > 0) {
+        if (safeVoiceOptions.length > 0) {
             return (
                 <Select value={voice} onValueChange={(value) => value && onVoiceChange(value)} disabled={disabled}>
                     <SelectTrigger className="flex-1">
                         <SelectValue placeholder="Select voice" />
                     </SelectTrigger>
                     <SelectContent>
-                        {withSelected(voiceOptions, voice).map((option) => (
+                        {withSelected(safeVoiceOptions, voice).map((option) => (
                             <SelectItem key={option} value={option}>
                                 {option}
                             </SelectItem>
@@ -523,7 +526,7 @@ export function VoiceLanguagePicker({
 
             <div className="space-y-2">
                 <Label>Language</Label>
-                {languageOptions.length > 0 ? (
+                {safeLanguageOptions.length > 0 ? (
                     <Select
                         value={language}
                         onValueChange={(value) => value && onLanguageChange(value)}
@@ -533,7 +536,7 @@ export function VoiceLanguagePicker({
                             <SelectValue placeholder="Select language" />
                         </SelectTrigger>
                         <SelectContent>
-                            {withSelected(languageOptions, language).map((option) => (
+                            {withSelected(safeLanguageOptions, language).map((option) => (
                                 <SelectItem key={option} value={option}>
                                     {languageLabel(option)}
                                 </SelectItem>

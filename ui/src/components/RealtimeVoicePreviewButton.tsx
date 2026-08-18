@@ -1,12 +1,13 @@
 "use client";
 
-import { Loader2, Play, Square } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 import {
     fetchRealtimeVoicePreview,
     supportsRealtimeVoicePreview,
@@ -22,9 +23,8 @@ interface RealtimeVoicePreviewButtonProps {
 }
 
 /**
- * Play/Stop button that fetches (and caches server-side) a short spoken
- * sample for a realtime provider voice. Renders nothing for providers the
- * backend cannot synthesize previews for.
+ * Interactive Play/Stop button with animated soundwave frequency bars
+ * that fetches and streams a spoken sample for a realtime provider voice.
  */
 export function RealtimeVoicePreviewButton({
     provider,
@@ -92,20 +92,28 @@ export function RealtimeVoicePreviewButton({
     return (
         <Button
             type="button"
-            variant="outline"
+            variant={isPlaying ? "brand" : "outline"}
             size="icon"
-            className={className}
+            className={cn(
+                "relative transition-all duration-200",
+                isPlaying && "border-primary/50 shadow-[var(--shadow-glow)] scale-105",
+                className
+            )}
             onClick={handleClick}
             disabled={disabled || isLoading || !voice}
             aria-label={isPlaying ? "Stop voice preview" : "Play voice preview"}
             title={isPlaying ? "Stop preview" : "Preview this voice"}
         >
             {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
             ) : isPlaying ? (
-                <Square className="h-4 w-4 fill-current" />
+                <div className="flex items-center gap-0.5 h-3.5">
+                    <span className="w-0.5 h-full bg-white rounded-full animate-[wave-bar_0.8s_ease-in-out_infinite]" />
+                    <span className="w-0.5 h-full bg-white rounded-full animate-[wave-bar_0.8s_ease-in-out_0.2s_infinite]" />
+                    <span className="w-0.5 h-full bg-white rounded-full animate-[wave-bar_0.8s_ease-in-out_0.4s_infinite]" />
+                </div>
             ) : (
-                <Play className="h-4 w-4 fill-current" />
+                <Play className="h-3.5 w-3.5 fill-current ml-0.5" />
             )}
         </Button>
     );

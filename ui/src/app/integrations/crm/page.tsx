@@ -39,8 +39,8 @@ export default function CrmIntegrationPage() {
         description="Automatically push every call to your CRM — upsert the contact and log the outcome, recording, transcript and sentiment. Connect your own CRM account and API token."
         actions={
           <Badge
-            variant="secondary"
-            className="shrink-0 bg-muted text-muted-foreground"
+            variant="brand"
+            className="shrink-0"
           >
             Bring your own account
           </Badge>

@@ -9,6 +9,7 @@ from api.db import db_client
 from api.db.models import (
     UserModel,
 )
+from api.enums import OrganizationConfigurationKey
 from api.schemas.onboarding_state import OnboardingState, OnboardingStateUpdate
 from api.services.auth.depends import get_user
 from api.services.configuration.ai_model_configuration import (
@@ -41,6 +42,7 @@ class AuthUserResponse(TypedDict):
     is_superuser: bool
     plan: str
     features: dict
+    is_locked: bool
 
 
 class DefaultConfigurationsResponse(TypedDict):
@@ -87,13 +89,22 @@ async def get_auth_user(
     from api.services.plans import TRIAL_PLAN, features_for_plan, get_org_plan
 
     plan = TRIAL_PLAN
+    is_locked = True
     if user.selected_organization_id:
         plan = await get_org_plan(user.selected_organization_id)
+        client_lock_config = await db_client.get_configuration(
+            organization_id=user.selected_organization_id,
+            key=OrganizationConfigurationKey.CLIENT_LOCK.value,
+        )
+        if client_lock_config and isinstance(client_lock_config.value, dict):
+            is_locked = bool(client_lock_config.value.get("is_locked", True))
+
     return {
         "id": user.id,
         "is_superuser": bool(user.is_superuser),
         "plan": plan,
         "features": features_for_plan(plan),
+        "is_locked": is_locked if not bool(user.is_superuser) else False,
     }
 
 

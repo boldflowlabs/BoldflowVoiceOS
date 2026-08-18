@@ -18,6 +18,7 @@ from loguru import logger
 from api.db import db_client
 from api.db.credit_ledger_client import ALREADY_APPLIED, UNMETERED
 from api.db.models import OrganizationModel, UserModel
+from api.enums import OrganizationConfigurationKey
 from api.schemas.admin_clients import (
     AddNoteRequest,
     AdminAuditItem,
@@ -45,8 +46,12 @@ from api.schemas.admin_clients import (
     GrantCreditsResponse,
     RecordPasswordRequest,
     RecordPasswordResponse,
+    ResetClientPasswordRequest,
+    ResetClientPasswordResponse,
     RetryProvisionRequest,
     RetryProvisionResponse,
+    ToggleClientLockRequest,
+    ToggleClientLockResponse,
 )
 from api.services.admin.audit import record_admin_action
 from api.services.admin.profile import (
@@ -107,6 +112,19 @@ def _resolve_owner(organization: OrganizationModel) -> Optional[UserModel]:
         if f"org_{user.provider_id}" == organization.provider_id:
             return user
     return min(users, key=lambda u: u.id)
+
+
+async def _resolve_owner_async(organization: OrganizationModel) -> Optional[UserModel]:
+    """Resolve owner user for an organization using multi-strategy lookups."""
+    owner = _resolve_owner(organization)
+    if owner:
+        return owner
+    if organization.provider_id and organization.provider_id.startswith("org_"):
+        pid = organization.provider_id[4:]
+        user = await db_client.get_user_by_provider_id(pid)
+        if user:
+            return user
+    return None
 
 
 def _ordered_voicelink_configs(configs):
@@ -229,6 +247,15 @@ async def list_clients(
         money = await get_org_money(organization.id)
         suspended = await is_org_suspended(organization.id)
 
+        # Check client lock status (defaults to True)
+        client_lock_config = await db_client.get_configuration(
+            organization_id=organization.id,
+            key=OrganizationConfigurationKey.CLIENT_LOCK.value,
+        )
+        is_locked = True
+        if client_lock_config and isinstance(client_lock_config.value, dict):
+            is_locked = bool(client_lock_config.value.get("is_locked", True))
+
         clients.append(
             AdminClientItem(
                 organization_id=organization.id,
@@ -251,6 +278,7 @@ async def list_clients(
                 money_left_inr=money["money_left_inr"],
                 money_spent_inr=money["money_spent_inr"],
                 suspended=suspended,
+                is_locked=is_locked,
             )
         )
 
@@ -698,6 +726,14 @@ async def get_client_detail(
 
     usage = await _client_usage(org_id, money)
 
+    client_lock_config = await db_client.get_configuration(
+        organization_id=organization.id,
+        key=OrganizationConfigurationKey.CLIENT_LOCK.value,
+    )
+    is_locked = True
+    if client_lock_config and isinstance(client_lock_config.value, dict):
+        is_locked = bool(client_lock_config.value.get("is_locked", True))
+
     return AdminClientDetailResponse(
         organization_id=organization.id,
         organization_name=organization.provider_id,
@@ -717,9 +753,45 @@ async def get_client_detail(
         pricing=AdminPricing(**pricing),
         money=AdminMoney(**money),
         suspended=bool(profile.get("suspended")),
+        is_locked=is_locked,
         notes=list(profile.get("notes") or []),
         kyc=kyc,
         usage=usage,
+    )
+
+
+@router.post("/{org_id}/lock", response_model=ToggleClientLockResponse)
+async def toggle_client_lock(
+    org_id: int,
+    request: ToggleClientLockRequest,
+    user: UserModel = Depends(get_superuser),
+) -> ToggleClientLockResponse:
+    """Lock (view-only) or unlock (full-access) a client organization."""
+    organization = await db_client.get_organization_by_id(org_id)
+    if organization is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    await db_client.set_organization_configuration_by_key(
+        organization_id=org_id,
+        key=OrganizationConfigurationKey.CLIENT_LOCK.value,
+        value={"is_locked": bool(request.is_locked)},
+    )
+
+    action_label = "locked in view-only mode" if request.is_locked else "unlocked for full editing access"
+    await record_admin_action(
+        actor_user_id=user.id,
+        target_organization_id=org_id,
+        action="set_client_lock",
+        detail={"is_locked": request.is_locked},
+    )
+    logger.info(
+        f"Superuser {user.id} set lock status for org {org_id}: is_locked={request.is_locked}"
+    )
+
+    return ToggleClientLockResponse(
+        organization_id=org_id,
+        is_locked=request.is_locked,
+        message=f"Client organization successfully {action_label}.",
     )
 
 
@@ -881,9 +953,12 @@ async def create_client_account(
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
 
-    # Generated password (the client never receives the plaintext except via the
-    # operator). Hashed for the platform login; stashed for VoiceLink provisioning.
-    password = generate_client_password()
+    # Supplied or generated password. Hashed for platform login; stashed for VoiceLink provisioning.
+    password = (
+        request.password.strip()
+        if request.password and request.password.strip()
+        else generate_client_password()
+    )
     owner = await db_client.create_user_with_email(
         email=email, password_hash=hash_password(password), name=request.name
     )
@@ -908,7 +983,7 @@ async def create_client_account(
             exc_info=True,
         )
 
-    # Best-effort: stash the generated password so the org's VoiceLink client can
+    # Best-effort: stash the password so the org's VoiceLink client can
     # be provisioned later with a matching password.
     await stash_voicelink_signup_secret(
         organization_id=organization.id, email=email, password=password
@@ -953,9 +1028,63 @@ async def create_client_account(
         credits_seconds_remaining=credits_remaining,
         temporary_password=password,
         note=(
-            "Owner login created with a generated password (returned once) — "
-            "the owner should change it after first login."
+            "Owner account successfully created with password. "
+            "Share these credentials with your client."
         ),
+    )
+
+
+@router.post("/{organization_id}/reset-password", response_model=ResetClientPasswordResponse)
+async def reset_client_password(
+    organization_id: int,
+    request: ResetClientPasswordRequest,
+    user: UserModel = Depends(get_superuser),
+) -> ResetClientPasswordResponse:
+    """Update or reset the login password for the owner of an organization."""
+    owner = None
+    if request.email and request.email.strip():
+        owner = await db_client.get_user_by_email(request.email.strip().lower())
+
+    org = None
+    if organization_id > 0:
+        org = await db_client.get_organization_with_users(organization_id)
+        if not org:
+            org = await db_client.get_organization_by_id(organization_id)
+
+    if not owner and org:
+        owner = await _resolve_owner_async(org)
+
+    if not owner:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User not found for organization #{organization_id}",
+        )
+
+    password = request.password.strip()
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    new_hash = hash_password(password)
+    await db_client.update_user_password(owner.id, new_hash)
+
+    target_org_id = org.id if org else (owner.selected_organization_id or organization_id)
+    await stash_voicelink_signup_secret(
+        organization_id=target_org_id, email=owner.email or "", password=password
+    )
+
+    await record_admin_action(
+        actor_user_id=user.id,
+        target_organization_id=target_org_id,
+        action="reset_client_password",
+        detail={"email": owner.email},
+    )
+    logger.info(f"Superuser {user.id} reset password for client {owner.email} (org {target_org_id})")
+
+    return ResetClientPasswordResponse(
+        success=True,
+        organization_id=target_org_id,
+        owner_email=owner.email or "",
+        message=f"Password updated successfully for {owner.email}",
     )
 
 

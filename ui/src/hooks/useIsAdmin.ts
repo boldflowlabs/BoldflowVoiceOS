@@ -1,7 +1,6 @@
 'use client';
 
 import { useUserConfig } from '@/context/UserConfigContext';
-import { CLIENT_MODE } from '@/lib/brand';
 
 /**
  * Role check built on the platform's real permission mechanism:
@@ -18,15 +17,14 @@ import { CLIENT_MODE } from '@/lib/brand';
  * provider/API-key/engine settings) for everyone EXCEPT superusers.
  */
 export function useIsAdmin(): { isAdmin: boolean; isLoaded: boolean } {
-    const { permissions, permissionsLoaded, isSuperuser, superuserLoaded } = useUserConfig();
+    const { isSuperuser, isLocked, superuserLoaded } = useUserConfig();
 
-    if (CLIENT_MODE) {
-        // Only the superuser (deployment owner) keeps admin surfaces.
-        return { isAdmin: isSuperuser, isLoaded: superuserLoaded };
-    }
+    // Superusers always have full admin privileges.
+    // Client organizations have editing privileges only when explicitly unlocked by the agency.
+    const isAdmin = Boolean(isSuperuser) || (!Boolean(isSuperuser) && isLocked === false);
 
     return {
-        isAdmin: isSuperuser || permissions.some((p) => p.id === 'admin'),
-        isLoaded: permissionsLoaded && superuserLoaded,
+        isAdmin,
+        isLoaded: superuserLoaded,
     };
 }

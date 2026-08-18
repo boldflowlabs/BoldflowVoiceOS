@@ -79,14 +79,14 @@ export default function CampaignsPage() {
         return new Date(dateString).toLocaleDateString();
     };
 
-    const getStateBadgeVariant = (state: string) => {
+    const getStateBadgeVariant = (state: string): "default" | "brand" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "muted" => {
         switch (state) {
             case 'created':
-                return 'secondary';
+                return 'brand';
             case 'running':
-                return 'default';
+                return 'success';
             case 'paused':
-                return 'outline';
+                return 'warning';
             case 'completed':
                 return 'secondary';
             case 'failed':
@@ -99,62 +99,63 @@ export default function CampaignsPage() {
     return (
         <PageShell width="wide">
             <PageHeader
-                eyebrow="Outbound"
-                title="Campaigns"
-                subtitle="Manage your bulk workflow execution campaigns."
+                icon={Megaphone}
+                eyebrow="Outbound Dispatch"
+                title="Calling Campaigns"
+                subtitle="Automated high-throughput voice campaigns with intelligent call pacing and disposition analytics."
                 actions={
-                    <Button onClick={handleCreateCampaign}>
+                    <Button variant="brand" onClick={handleCreateCampaign}>
                         <Plus className="mr-2 h-4 w-4" />
                         Create Campaign
                     </Button>
                 }
             />
 
-            <Card className="rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)] transition-all duration-200">
+            <Card className="rounded-2xl border-border/70 bg-card shadow-xs">
                 <CardHeader>
                     <CardTitle className="text-h3">All Campaigns</CardTitle>
                     <CardDescription className="text-small">
-                        View and manage your campaigns
+                        View, monitor, and manage your bulk voice execution runs
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     {isLoading ? (
                         <div className="animate-pulse space-y-3 px-6 pb-6">
                             {[...Array(5)].map((_, i) => (
-                                <div key={i} className="h-12 rounded-lg bg-muted" />
+                                <div key={i} className="h-12 rounded-xl bg-muted" />
                             ))}
                         </div>
                     ) : campaignsData && campaignsData.campaigns.length > 0 ? (
-                        <div className="overflow-x-auto border-t border-border/50">
+                        <div className="overflow-x-auto border-t border-border/60">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="border-border/50 bg-muted/40 hover:bg-muted/40">
-                                        <TableHead className="text-label text-muted-foreground">ID</TableHead>
-                                        <TableHead className="text-label text-muted-foreground">Name</TableHead>
-                                        <TableHead className="text-label text-muted-foreground">Workflow</TableHead>
-                                        <TableHead className="text-label text-muted-foreground">State</TableHead>
-                                        <TableHead className="text-label text-muted-foreground">Progress</TableHead>
-                                        <TableHead className="text-label text-muted-foreground">Spent</TableHead>
-                                        <TableHead className="text-label text-muted-foreground">Created</TableHead>
-                                        <TableHead className="text-label text-right text-muted-foreground">Action</TableHead>
+                                    <TableRow className="border-border/60 bg-muted/40 hover:bg-muted/40">
+                                        <TableHead className="text-label text-muted-foreground font-semibold">ID</TableHead>
+                                        <TableHead className="text-label text-muted-foreground font-semibold">Name</TableHead>
+                                        <TableHead className="text-label text-muted-foreground font-semibold">Workflow</TableHead>
+                                        <TableHead className="text-label text-muted-foreground font-semibold">State</TableHead>
+                                        <TableHead className="text-label text-muted-foreground font-semibold">Progress</TableHead>
+                                        <TableHead className="text-label text-muted-foreground font-semibold">Spent</TableHead>
+                                        <TableHead className="text-label text-muted-foreground font-semibold">Created</TableHead>
+                                        <TableHead className="text-label text-right text-muted-foreground font-semibold">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {campaignsData.campaigns.map((campaign) => (
                                         <TableRow
                                             key={campaign.id}
-                                            className="cursor-pointer border-border/50 transition-colors duration-200 hover:bg-muted/40"
+                                            className="cursor-pointer border-border/60 transition-colors duration-200 hover:bg-muted/40"
                                             onClick={() => handleRowClick(campaign.id)}
                                         >
-                                            <TableCell className="py-3.5 tabular-nums text-muted-foreground">{campaign.id}</TableCell>
-                                            <TableCell className="py-3.5 font-medium text-foreground">{campaign.name}</TableCell>
+                                            <TableCell className="py-3.5 tabular-nums font-mono text-xs text-muted-foreground">#{campaign.id}</TableCell>
+                                            <TableCell className="py-3.5 font-semibold text-foreground">{campaign.name}</TableCell>
                                             <TableCell className="py-3.5 text-muted-foreground">{campaign.workflow_name}</TableCell>
                                             <TableCell className="py-3.5">
                                                 <Badge variant={getStateBadgeVariant(campaign.state)} className="capitalize">
                                                     {campaign.state}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="py-3.5 tabular-nums text-muted-foreground">
+                                            <TableCell className="py-3.5 tabular-nums text-muted-foreground font-medium">
                                                 {campaign.executed_count} / {campaign.total_queued_count}
                                             </TableCell>
                                             <TableCell className="py-3.5 tabular-nums text-muted-foreground">
@@ -168,14 +169,14 @@ export default function CampaignsPage() {
                                             <TableCell className="py-3.5 tabular-nums text-muted-foreground">{formatDate(campaign.created_at)}</TableCell>
                                             <TableCell className="py-3.5 text-right">
                                                 <Button
-                                                    variant="outline"
+                                                    variant="glass"
                                                     size="sm"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         handleRowClick(campaign.id);
                                                     }}
                                                 >
-                                                    View
+                                                    View Details
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -187,12 +188,12 @@ export default function CampaignsPage() {
                         <div className="px-6 pb-6">
                             <EmptyState
                                 icon={Megaphone}
-                                title="No campaigns yet"
-                                description="Launch your first campaign to start reaching contacts."
+                                title="No outbound campaigns yet"
+                                description="Launch your first campaign to start automated voice outreach at scale."
                                 action={
-                                    <Button onClick={handleCreateCampaign} variant="outline">
+                                    <Button onClick={handleCreateCampaign} variant="brand">
                                         <Plus className="mr-2 h-4 w-4" />
-                                        Create your first campaign
+                                        Create First Campaign
                                     </Button>
                                 }
                             />

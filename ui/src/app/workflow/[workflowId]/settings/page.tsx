@@ -25,6 +25,7 @@ import {
 } from "@/components/AIModelConfigurationV2Editor";
 import { FlowEdge, FlowNode } from "@/components/flow/types";
 import { LLMConfigSelector } from "@/components/LLMConfigSelector";
+import { LockedSafeguardBanner } from "@/components/LockedSafeguardBanner";
 import { ServiceConfigurationForm } from "@/components/ServiceConfigurationForm";
 import SpinLoader from "@/components/SpinLoader";
 import { Button } from "@/components/ui/button";
@@ -1603,6 +1604,11 @@ function WorkflowSettingsInner({
             <div className="mx-auto flex max-w-5xl gap-8 px-6 py-8">
                 {/* Sections */}
                 <div className="min-w-0 flex-1 space-y-8">
+                    <LockedSafeguardBanner
+                        variant="card"
+                        featureName="workflow parameters and voice agent settings"
+                    />
+
                     {workflowConfigurations && (
                         <>
                             {/* General */}

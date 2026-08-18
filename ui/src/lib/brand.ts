@@ -24,7 +24,7 @@
  */
 
 export const BRAND = {
-    name: process.env.NEXT_PUBLIC_BRAND_NAME || "VoiceAI Platform",
+    name: process.env.NEXT_PUBLIC_BRAND_NAME || "Boldflow Labs",
     logoUrl: process.env.NEXT_PUBLIC_BRAND_LOGO || "",
     tagline:
         process.env.NEXT_PUBLIC_BRAND_TAGLINE ||
@@ -33,6 +33,8 @@ export const BRAND = {
     docsUrl: process.env.NEXT_PUBLIC_BRAND_DOCS_URL || "",
     privacyUrl: process.env.NEXT_PUBLIC_BRAND_PRIVACY_URL || "",
     termsUrl: process.env.NEXT_PUBLIC_BRAND_TERMS_URL || "",
+    supportEmail:
+        process.env.NEXT_PUBLIC_BRAND_SUPPORT_EMAIL || "support@boldflowlabs.com",
     /** Show upstream OSS community links (GitHub/Slack). Off by default. */
     showCommunityLinks: process.env.NEXT_PUBLIC_BRAND_COMMUNITY === "true",
 } as const;
@@ -47,5 +49,4 @@ export const CLIENT_MODE = process.env.NEXT_PUBLIC_CLIENT_MODE === "true";
 
 /** Calendly (or similar) link used by the Enterprise "Book a meeting" CTAs. */
 export const BOOK_A_MEETING_URL =
-    process.env.NEXT_PUBLIC_BOOK_A_MEETING_URL ||
-    "https://calendly.com/hardik-shahpura/intro-call";
+    process.env.NEXT_PUBLIC_BOOK_A_MEETING_URL || "";

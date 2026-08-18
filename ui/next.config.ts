@@ -23,6 +23,30 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/client-management',
+        destination: '/clients',
+        permanent: false,
+      },
+      {
+        source: '/admin/clients',
+        destination: '/clients',
+        permanent: false,
+      },
+      {
+        source: '/admin',
+        destination: '/clients',
+        permanent: false,
+      },
+      {
+        source: '/client',
+        destination: '/clients',
+        permanent: false,
+      },
+    ];
+  },
   // This is required to support PostHog trailing slash API requests
   skipTrailingSlashRedirect: true,
 };
