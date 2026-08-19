@@ -31,7 +31,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: BRAND.name,
   description: BRAND.tagline,
-  ...(BRAND.logoUrl ? { icons: { icon: BRAND.logoUrl } } : {}),
+  icons: {
+    icon: BRAND.logoUrl || "/icon.svg",
+    shortcut: BRAND.logoUrl || "/icon.svg",
+    apple: BRAND.logoUrl || "/icon.svg",
+  },
 };
 
 export default function RootLayout({

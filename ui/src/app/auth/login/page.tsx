@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { loginApiV1AuthLoginPost } from "@/client/sdk.gen";
 import type { LoginRequest } from "@/client/types.gen";
 import { BrandLogo } from "@/components/BrandLogo";
-import { Turnstile } from "@/components/Turnstile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,7 +25,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -38,17 +36,11 @@ export default function LoginPage() {
         body: {
           email,
           password,
-          turnstile_token: turnstileToken,
         } as LoginRequest,
       });
       if (res.error || !res.data) {
         const detail = (res.error as { detail?: string })?.detail;
-        if (detail?.includes("captcha")) {
-          toast.error("Please complete the verification and try again.");
-          setTurnstileToken(null);
-        } else {
-          toast.error(detail || "Login failed");
-        }
+        toast.error(detail || "Login failed");
         return;
       }
       await fetch("/api/auth/session", {
@@ -128,8 +120,6 @@ export default function LoginPage() {
                   className="h-9.5 rounded-lg text-sm"
                 />
               </div>
-
-              <Turnstile onVerify={setTurnstileToken} />
 
               <Button type="submit" variant="default" className="w-full h-9.5 text-sm font-medium mt-2" disabled={loading}>
                 {loading ? "Signing in..." : "Sign In"}
