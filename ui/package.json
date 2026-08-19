@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--enable-source-maps next dev --turbopack",
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=2048 next build",
     "start": "next start",
     "lint": "next lint",
     "fix-lint": "npx eslint --fix . --ignore-pattern '.next/*' --ignore-pattern 'node_modules/*' --ignore-pattern 'next-env.d.ts'",

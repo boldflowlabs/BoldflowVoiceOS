@@ -11,9 +11,27 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  serverExternalPackages: [
+    "pino",
+    "pino-pretty",
+    "@opentelemetry/instrumentation",
+    "@opentelemetry/api",
+    "@sentry/node",
+    "@sentry/nextjs",
+  ],
+  outputFileTracingExcludes: {
+    '*': [
+      'node_modules/@swc/core-linux-x64-gnu',
+      'node_modules/@swc/core-linux-x64-musl',
+      'node_modules/@esbuild',
+      'node_modules/webpack',
+      'node_modules/terser',
+      'node_modules/uglify-js',
+    ],
+  },
   experimental: {
     webpackMemoryOptimizations: true,
-    cpus: 2,
+    cpus: 1,
     optimizePackageImports: [
       "lucide-react",
       "@radix-ui/react-alert-dialog",
