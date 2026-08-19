@@ -237,6 +237,10 @@ services:
 
       OSS_JWT_SECRET: "${OSS_JWT_SECRET:?OSS_JWT_SECRET must be set to a strong secret}"
 
+      # Superuser Admin Emails and Default Password
+      ADMIN_EMAILS: "${ADMIN_EMAILS:-godsonsaji832@gmail.com,boldflowlabs@gmail.com}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-Admingodson@123}"
+
       # Telemetry
       ENABLE_TELEMETRY: "${ENABLE_TELEMETRY:-true}"
       POSTHOG_API_KEY: "phc_ItizB1dP6yv7ZYobbcqrpxTdbomDA8hJFSEmAMdYvIr"

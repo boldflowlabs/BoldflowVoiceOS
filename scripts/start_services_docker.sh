@@ -37,6 +37,17 @@ for i in {1..10}; do
   sleep 3
 done
 
+if [[ -n "$ADMIN_EMAILS" ]]; then
+  echo "Ensuring admin user account(s) exist..."
+  IFS=',' read -ra ADDR <<< "$ADMIN_EMAILS"
+  for email in "${ADDR[@]}"; do
+    email="$(echo -e "${email}" | tr -d '[:space:]')"
+    if [[ -n "$email" ]]; then
+      python -m api.scripts.create_or_reset_admin --email "$email" --password "${ADMIN_PASSWORD:-Admingodson@123}" || true
+    fi
+  done
+fi
+
 ###############################################################################
 ### 3) Signal handling — forward TERM/INT to children for clean docker stop
 ###############################################################################
