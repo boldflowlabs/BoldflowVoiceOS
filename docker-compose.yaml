@@ -15,6 +15,7 @@
 services:
   postgres:
     image: pgvector/pgvector:pg17
+    container_name: postgres
     environment:
       POSTGRES_USER: postgres
       # Sourced from .env. Defaults to "postgres"
@@ -36,10 +37,13 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - app-network
+      app-network:
+        aliases:
+          - postgres
 
   redis:
     image: redis:7
+    container_name: redis
     command: >
       --requirepass ${REDIS_PASSWORD:-redissecret}
     volumes:
@@ -50,7 +54,9 @@ services:
       timeout: 10s
       retries: 10
     networks:
-      - app-network
+      app-network:
+        aliases:
+          - redis
 
   minio:
     image: minio/minio
@@ -68,7 +74,9 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - app-network
+      app-network:
+        aliases:
+          - minio
 
   dograh-init:
     image: bash:5.2
@@ -138,6 +146,7 @@ services:
       context: .
       dockerfile: api/Dockerfile
     image: boldflow-api:latest
+    container_name: api
     volumes:
       - shared-tmp:/tmp
     environment:
@@ -251,7 +260,9 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - app-network
+      app-network:
+        aliases:
+          - api
 
   ui:
     build:
@@ -264,6 +275,7 @@ services:
         NEXT_PUBLIC_BOOK_A_MEETING_URL: "${NEXT_PUBLIC_BOOK_A_MEETING_URL:-https://cal.com/boldflow-labs/scoping-session}"
         NEXT_PUBLIC_BACKEND_URL: "${BACKEND_API_ENDPOINT:-https://api.boldflowlabs.com}"
     image: boldflow-ui:latest
+    container_name: ui
     environment:
       # Bind the Next.js standalone server to all interfaces
       HOSTNAME: "0.0.0.0"
@@ -292,7 +304,9 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - app-network
+      app-network:
+        aliases:
+          - ui
 
   # Cloudflare tunnel for inbound webhook / WSS reachability when the host has no
   # usable public IP (behind NAT or a firewall). Gated behind the "tunnel" profile
