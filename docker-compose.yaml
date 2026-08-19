@@ -265,6 +265,9 @@ services:
       start_period: 60s
     expose:
       - 8000
+    labels:
+      - "traefik.docker.network=coolify"
+      - "traefik.http.services.api.loadbalancer.server.port=8000"
     networks:
       - app-network
       - coolify
@@ -310,6 +313,9 @@ services:
       start_period: 30s
     expose:
       - 3010
+    labels:
+      - "traefik.docker.network=coolify"
+      - "traefik.http.services.ui.loadbalancer.server.port=3010"
     networks:
       - app-network
       - coolify
