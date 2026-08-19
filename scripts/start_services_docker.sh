@@ -19,7 +19,7 @@ echo "Starting Dograh Services (DOCKER) at $(date) in BASE_DIR: ${BASE_DIR}"
 ### 1) Load env file if mounted (env normally comes from docker-compose)
 ###############################################################################
 
-if [[ -f "$ENV_FILE" ]]; then
+if [[ -z "$DATABASE_URL" && -f "$ENV_FILE" ]]; then
   set -a && . "$ENV_FILE" && set +a
 fi
 
@@ -27,7 +27,15 @@ fi
 ### 2) Run migrations
 ###############################################################################
 
-alembic -c "$BASE_DIR/api/alembic.ini" upgrade head
+echo "Running database migrations..."
+for i in {1..10}; do
+  if alembic -c "$BASE_DIR/api/alembic.ini" upgrade head; then
+    echo "Migrations applied successfully."
+    break
+  fi
+  echo "Migration failed or database not ready yet, retrying in 3s ($i/10)..."
+  sleep 3
+done
 
 ###############################################################################
 ### 3) Signal handling — forward TERM/INT to children for clean docker stop
