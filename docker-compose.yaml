@@ -266,9 +266,8 @@ services:
     expose:
       - 8000
     networks:
-      app-network:
-        aliases:
-          - api
+      - app-network
+      - coolify
 
   ui:
     build:
@@ -312,9 +311,8 @@ services:
     expose:
       - 3010
     networks:
-      app-network:
-        aliases:
-          - ui
+      - app-network
+      - coolify
 
   # Cloudflare tunnel for inbound webhook / WSS reachability when the host has no
   # usable public IP (behind NAT or a firewall). Gated behind the "tunnel" profile
@@ -363,3 +361,5 @@ volumes:
 networks:
   app-network:
     driver: bridge
+  coolify:
+    external: true
