@@ -1,7 +1,7 @@
 import "./globals.css";
 
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { Suspense } from "react";
 
 import AppLayout from "@/components/layout/AppLayout";
@@ -17,16 +17,29 @@ import { TelephonyConfigWarningsProvider } from "@/context/TelephonyConfigWarnin
 import { AuthProvider } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
 
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#090d16" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: BRAND.name,
@@ -45,7 +58,7 @@ export default function RootLayout({
 }) {
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
         {/* Inline script to apply persisted theme (light by default) - runs before React hydrates */}
         <script
@@ -69,7 +82,8 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        className={`${inter.className} ${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+      >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           <SentryErrorBoundary>
             <AuthProvider>
