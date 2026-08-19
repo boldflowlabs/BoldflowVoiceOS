@@ -1,5 +1,6 @@
 """Set up logging before importing anything else"""
 
+import os
 import sentry_sdk
 
 from api.constants import (
