@@ -38,8 +38,28 @@ BACKEND_API_ENDPOINT = (
 )
 UI_APP_URL = os.getenv("UI_APP_URL", "http://localhost:3010")
 
-DATABASE_URL = os.environ["DATABASE_URL"]
-REDIS_URL = os.environ["REDIS_URL"]
+import urllib.parse
+
+def _sanitize_url_credentials(url: str | None) -> str:
+    if not url or "@" not in url:
+        return url or ""
+    if url.count("@") > 1:
+        try:
+            scheme, rest = url.split("://", 1)
+            creds, host_part = rest.rsplit("@", 1)
+            if ":" in creds:
+                user, pwd = creds.split(":", 1)
+                encoded_pwd = urllib.parse.quote_plus(pwd)
+                return f"{scheme}://{user}:{encoded_pwd}@{host_part}"
+            else:
+                encoded_creds = urllib.parse.quote_plus(creds)
+                return f"{scheme}://{encoded_creds}@{host_part}"
+        except Exception:
+            return url
+    return url
+
+DATABASE_URL = _sanitize_url_credentials(os.getenv("DATABASE_URL", ""))
+REDIS_URL = _sanitize_url_credentials(os.getenv("REDIS_URL", ""))
 
 DEPLOYMENT_MODE = os.getenv("DEPLOYMENT_MODE", "oss")
 CORS_ALLOWED_ORIGINS = [
