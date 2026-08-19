@@ -238,7 +238,7 @@ services:
       POSTHOG_HOST: "https://us.i.posthog.com"
 
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8080}:8000"
     depends_on:
       postgres:
         condition: service_healthy
