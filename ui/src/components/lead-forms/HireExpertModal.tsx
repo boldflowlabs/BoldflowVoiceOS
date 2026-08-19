@@ -2,5 +2,5 @@
 
 import { SupportModal } from "./SupportModal";
 
-export { SupportModal, SupportModal as HireExpertModal };
+export { SupportModal as HireExpertModal,SupportModal };
 export default SupportModal;

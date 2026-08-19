@@ -29,8 +29,8 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { CampaignRuns } from '@/components/workflow-runs';
-import { useAuth } from '@/lib/auth';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { useAuth } from '@/lib/auth';
 
 export default function CampaignDetailPage() {
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();

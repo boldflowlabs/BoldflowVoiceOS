@@ -1,9 +1,9 @@
 "use client";
 
-import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { CreateWorkflowButton } from "@/components/workflow/CreateWorkflowButton";
 import { CreateFolderButton } from "@/components/workflow/folders/CreateFolderButton";
 import { UploadWorkflowButton } from "@/components/workflow/UploadWorkflowButton";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 /**
  * Renders agent creation, folder creation, and agent definition upload buttons

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { client } from "@/client/client.gen";
 import { Label } from "@/components/ui/label";
@@ -42,6 +42,9 @@ export default function CsvColumnMapping({ sourceId, workflowId, onChange, defau
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const onChangeRef = useRef(onChange);
+    onChangeRef.current = onChange;
+
     useEffect(() => {
         if (!sourceId) {
             setPreview(null);
@@ -69,7 +72,7 @@ export default function CsvColumnMapping({ sourceId, workflowId, onChange, defau
             setPreview(p);
             const init = { ...(p.suggested_mapping || {}) };
             setMapping(init);
-            onChange(init);
+            onChangeRef.current(init);
         })();
         return () => {
             cancelled = true;

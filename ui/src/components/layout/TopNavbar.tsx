@@ -1,5 +1,6 @@
 "use client";
 
+import type { Team } from "@stackframe/stack";
 import {
   AudioLines,
   BarChart3,
@@ -47,7 +48,6 @@ import { useLeadForms } from "@/context/LeadFormsContext";
 import { useTelephonyConfigWarnings } from "@/context/TelephonyConfigWarningsContext";
 import { useUserConfig } from "@/context/UserConfigContext";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import type { Team } from "@stackframe/stack";
 import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";

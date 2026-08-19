@@ -239,7 +239,7 @@ export function TelephonyStatusBadge({
       const label = formatTelephonyProvider(p);
       const isError =
         error &&
-        (p === "voicelink" || status === "error" || liveState === "missing");
+        (p === "voicelink" || status === "error" || liveState === "missing" || voicelinkStatus === "error");
       if (isError) {
         return (
           <Tooltip>

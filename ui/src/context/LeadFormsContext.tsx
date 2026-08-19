@@ -3,8 +3,8 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useRef, useState } from "react";
 
 import { EnterpriseModal } from "@/components/lead-forms/EnterpriseModal";
-import { SupportModal } from "@/components/lead-forms/SupportModal";
 import type { LeadSource } from "@/components/lead-forms/leadFieldOptions";
+import { SupportModal } from "@/components/lead-forms/SupportModal";
 
 interface LeadFormsContextValue {
   openSupport: (source: LeadSource) => void;

@@ -89,6 +89,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { refreshSaasState } from "@/context/UserConfigContext";
 import {
   addClientNote,
   ADMIN_PLANS,
@@ -114,7 +115,6 @@ import {
   updateAdminProfile,
 } from "@/lib/adminClients";
 import { useAuth } from "@/lib/auth";
-import { refreshSaasState } from "@/context/UserConfigContext";
 import { impersonateAsSuperadmin } from "@/lib/utils";
 
 const DERIVED = "__derived__";

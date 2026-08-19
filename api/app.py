@@ -3,6 +3,7 @@
 import sentry_sdk
 
 from api.constants import (
+    BACKEND_API_ENDPOINT,
     CORS_ALLOWED_ORIGINS,
     DEPLOYMENT_MODE,
     ENABLE_TELEMETRY,
@@ -75,10 +76,12 @@ async def lifespan(app: FastAPI):
         await sync_manager.stop()
 
 
+_brand_name = os.getenv("BRAND_NAME") or "Voice OS"
+
 app = FastAPI(
-    title="Auto4You Voice API",
+    title=f"{_brand_name} Voice API",
     description=(
-        "REST API for the Auto4You voice-agent platform.\n\n"
+        f"REST API for the {_brand_name} voice-agent platform.\n\n"
         "**Authentication:** pass your organization API key in the `X-API-Key` "
         "header (create one in the dashboard under API Keys). Public call-trigger "
         "endpoints are grouped under the **public** tag.\n\n"
@@ -88,8 +91,7 @@ app = FastAPI(
     openapi_url=f"{API_PREFIX}/openapi.json",
     lifespan=lifespan,
     servers=[
-        {"url": "https://api.auto4you.in", "description": "Production"},
-        {"url": "http://localhost:8000", "description": "Local development"},
+        {"url": BACKEND_API_ENDPOINT, "description": "API Server"},
     ],
 )
 

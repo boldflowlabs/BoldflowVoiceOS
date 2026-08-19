@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import {
-  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -40,7 +39,6 @@ import {
 import { EmptyState } from "@/components/layout/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageShell } from "@/components/layout/PageShell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -74,6 +72,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { refreshSaasState } from "@/context/UserConfigContext";
 import {
   ADMIN_PLANS,
   type AdminClient,
@@ -85,7 +84,6 @@ import {
   toggleClientLock,
 } from "@/lib/adminClients";
 import { useAuth } from "@/lib/auth";
-import { refreshSaasState } from "@/context/UserConfigContext";
 import { impersonateAsSuperadmin } from "@/lib/utils";
 
 const LOW_BALANCE_THRESHOLD_INR = 100;
