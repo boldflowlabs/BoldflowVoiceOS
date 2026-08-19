@@ -134,7 +134,10 @@ services:
       - app-network
 
   api:
-    image: ${REGISTRY:-dograhai}/dograh-api:latest
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    image: boldflow-api:latest
     volumes:
       - shared-tmp:/tmp
     environment:
@@ -251,7 +254,16 @@ services:
       - app-network
 
   ui:
-    image: ${REGISTRY:-dograhai}/dograh-ui:latest
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+      args:
+        NEXT_PUBLIC_BRAND_NAME: "${NEXT_PUBLIC_BRAND_NAME:-Boldflow VoiceOS}"
+        NEXT_PUBLIC_BRAND_TAGLINE: "${NEXT_PUBLIC_BRAND_TAGLINE:-Next-generation conversational voice AI platform}"
+        NEXT_PUBLIC_BRAND_SUPPORT_EMAIL: "${NEXT_PUBLIC_BRAND_SUPPORT_EMAIL:-hello@boldflowlabs.com}"
+        NEXT_PUBLIC_BOOK_A_MEETING_URL: "${NEXT_PUBLIC_BOOK_A_MEETING_URL:-https://cal.com/boldflow-labs/scoping-session}"
+        NEXT_PUBLIC_BACKEND_URL: "${BACKEND_API_ENDPOINT:-https://api.boldflowlabs.com}"
+    image: boldflow-ui:latest
     environment:
       # Bind the Next.js standalone server to all interfaces
       HOSTNAME: "0.0.0.0"
