@@ -1,6 +1,7 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { AlertCircle, ArrowUpRight, Send } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -8,20 +9,28 @@ import { client } from "@/client/client.gen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { useUserConfig } from "@/context/UserConfigContext";
 import { useAuth } from "@/lib/auth";
 
-// Mirrors api/schemas/crm_config.py::CRMConfig. After each qualifying call we upsert
-// the contact (by phone) and log a call note with disposition/recording/transcript/
-// sentiment. Calls go through the shared hey-api client (no SDK regen needed).
 interface CRMConfig {
   enabled: boolean;
   provider: string;
   api_key: string;
+  secret_key: string;
   location_id: string;
   region_host: string;
+  custom_webhook_url: string;
+  pipeline_id: string;
   trigger_dispositions: string[];
   trigger_sentiments: string[];
   min_call_seconds: number;
@@ -29,10 +38,13 @@ interface CRMConfig {
 
 const EMPTY: CRMConfig = {
   enabled: false,
-  provider: "gohighlevel",
+  provider: "zoho",
   api_key: "",
+  secret_key: "",
   location_id: "",
   region_host: "",
+  custom_webhook_url: "",
+  pipeline_id: "",
   trigger_dispositions: [],
   trigger_sentiments: [],
   min_call_seconds: 0,
@@ -40,8 +52,17 @@ const EMPTY: CRMConfig = {
 
 const BASE = "/api/v1/organizations/crm-config";
 
+const CRM_PROVIDERS = [
+  { value: "zoho", label: "Zoho CRM" },
+  { value: "leadsquared", label: "LeadSquared" },
+  { value: "practo", label: "Practo (Ray / Reach)" },
+  { value: "gohighlevel", label: "GoHighLevel" },
+  { value: "custom_api", label: "Custom API / Webhook (Multi-Pipeline)" },
+];
+
 export function CrmSection() {
   const { user, loading: authLoading } = useAuth();
+  const { isSuperuser, planFeatures, planLoaded, plan } = useUserConfig();
   const [cfg, setCfg] = useState<CRMConfig>(EMPTY);
   const [exists, setExists] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -49,6 +70,8 @@ export function CrmSection() {
   const [testPhone, setTestPhone] = useState("");
   const [testing, setTesting] = useState(false);
   const hasFetched = useRef(false);
+
+  const canUseCRM = isSuperuser || (planLoaded && planFeatures.crm);
 
   useEffect(() => {
     if (authLoading || !user || hasFetched.current) return;
@@ -136,12 +159,43 @@ export function CrmSection() {
     );
   }
 
+  if (!canUseCRM) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6 shadow-xs space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg bg-amber-500/10 p-2 text-amber-600 dark:text-amber-400">
+            <AlertCircle className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-foreground">
+              CRM Automation is not available on your plan
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your organization is currently on the{" "}
+              <span className="font-semibold text-foreground uppercase">{plan}</span> plan.
+              CRM integrations (Zoho, LeadSquared, Practo, and Custom APIs) require a{" "}
+              <strong className="text-foreground">Growth</strong> or{" "}
+              <strong className="text-foreground">Scale</strong> plan.
+            </p>
+          </div>
+        </div>
+        <div className="pt-2">
+          <Button asChild variant="brand">
+            <Link href="/credits" className="inline-flex items-center gap-1.5">
+              Upgrade Plan in Credits & Billing
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSave} className="space-y-5">
       <p className="text-sm text-muted-foreground">
         Automatically push each call to your CRM — upsert the contact and log the
-        outcome, recording, transcript and sentiment as a note. Bring your own CRM
-        account and API token.
+        outcome, recording, transcript and sentiment as a note. Select your CRM provider below.
       </p>
 
       <div className="flex items-center justify-between rounded-md border p-3">
@@ -160,43 +214,151 @@ export function CrmSection() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="crm-provider">CRM</Label>
-          <div
-            id="crm-provider"
-            className="border-input flex h-10 w-full items-center rounded-lg border bg-muted/40 px-3.5 text-sm text-muted-foreground shadow-[var(--shadow-card)]"
+          <Label htmlFor="crm-provider">CRM Provider</Label>
+          <Select
+            value={cfg.provider}
+            onValueChange={(v) => set("provider", v)}
           >
-            GoHighLevel
+            <SelectTrigger id="crm-provider" className="w-full">
+              <SelectValue placeholder="Select a CRM" />
+            </SelectTrigger>
+            <SelectContent>
+              {CRM_PROVIDERS.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {cfg.provider === "zoho" && (
+          <div className="space-y-2">
+            <Label htmlFor="crm-region">Data Center Domain</Label>
+            <Input
+              id="crm-region"
+              placeholder="https://www.zohoapis.in or zohoapis.com"
+              value={cfg.region_host}
+              onChange={(e) => set("region_host", e.target.value)}
+            />
           </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="crm-location">Location ID</Label>
-          <Input
-            id="crm-location"
-            placeholder="GHL sub-account location id"
-            value={cfg.location_id}
-            onChange={(e) => set("location_id", e.target.value)}
-          />
-        </div>
+        )}
+
+        {cfg.provider === "leadsquared" && (
+          <div className="space-y-2">
+            <Label htmlFor="crm-region">Region Host</Label>
+            <Input
+              id="crm-region"
+              placeholder="api-in21.leadsquared.com"
+              value={cfg.region_host}
+              onChange={(e) => set("region_host", e.target.value)}
+            />
+          </div>
+        )}
+
+        {cfg.provider === "practo" && (
+          <div className="space-y-2">
+            <Label htmlFor="crm-location">Practice / Clinic ID</Label>
+            <Input
+              id="crm-location"
+              placeholder="Practo Practice or Clinic ID"
+              value={cfg.location_id}
+              onChange={(e) => set("location_id", e.target.value)}
+            />
+          </div>
+        )}
+
+        {cfg.provider === "gohighlevel" && (
+          <div className="space-y-2">
+            <Label htmlFor="crm-location">Location ID</Label>
+            <Input
+              id="crm-location"
+              placeholder="GHL sub-account location id"
+              value={cfg.location_id}
+              onChange={(e) => set("location_id", e.target.value)}
+            />
+          </div>
+        )}
+
+        {cfg.provider === "custom_api" && (
+          <div className="space-y-2">
+            <Label htmlFor="crm-pipeline">Pipeline / Routing ID</Label>
+            <Input
+              id="crm-pipeline"
+              placeholder="Pipeline or campaign ID (optional)"
+              value={cfg.pipeline_id}
+              onChange={(e) => set("pipeline_id", e.target.value)}
+            />
+          </div>
+        )}
       </div>
 
+      {cfg.provider === "custom_api" && (
+        <div className="space-y-2">
+          <Label htmlFor="crm-webhook-url">Webhook / Custom API Endpoint URL</Label>
+          <Input
+            id="crm-webhook-url"
+            placeholder="https://your-crm.domain.com/api/v1/voice-calls"
+            value={cfg.custom_webhook_url}
+            onChange={(e) => set("custom_webhook_url", e.target.value)}
+          />
+        </div>
+      )}
+
       <div className="space-y-2">
-        <Label htmlFor="crm-key">API token</Label>
+        <Label htmlFor="crm-key">
+          {cfg.provider === "leadsquared"
+            ? "Access Key"
+            : cfg.provider === "zoho"
+              ? "OAuth / API Token"
+              : cfg.provider === "practo"
+                ? "Practo API Key"
+                : cfg.provider === "custom_api"
+                  ? "Bearer Token (Optional)"
+                  : "API Token"}
+        </Label>
         <Input
           id="crm-key"
           type="password"
-          placeholder="GoHighLevel Private Integration Token"
+          placeholder="Enter credentials token"
           value={cfg.api_key}
           onChange={(e) => set("api_key", e.target.value)}
         />
         <p className="text-xs text-muted-foreground">
-          Stored encrypted and shown masked. Leave the masked value to keep the
-          current token.
+          Stored encrypted and shown masked. Leave masked value to keep current token.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      {(cfg.provider === "leadsquared" || cfg.provider === "custom_api") && (
+        <div className="space-y-2">
+          <Label htmlFor="crm-secret-key">
+            {cfg.provider === "leadsquared" ? "Secret Key" : "Webhook Secret / Signature Header (Optional)"}
+          </Label>
+          <Input
+            id="crm-secret-key"
+            type="password"
+            placeholder="Enter secret key"
+            value={cfg.secret_key}
+            onChange={(e) => set("secret_key", e.target.value)}
+          />
+        </div>
+      )}
+
+      {cfg.provider === "zoho" && (
+        <div className="space-y-2">
+          <Label htmlFor="crm-pipeline">Target Pipeline (Optional)</Label>
+          <Input
+            id="crm-pipeline"
+            placeholder="Pipeline name or ID"
+            value={cfg.pipeline_id}
+            onChange={(e) => set("pipeline_id", e.target.value)}
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="crm-dispositions">Only sync for dispositions</Label>
           <Input

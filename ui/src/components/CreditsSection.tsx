@@ -15,6 +15,10 @@ interface PackFeatures {
   api: boolean;
   mcp: boolean;
   build_with_ai?: boolean;
+  crm?: boolean;
+  analytics_dashboard?: boolean;
+  advanced_analytics?: boolean;
+  advanced_whatsapp?: boolean;
 }
 interface Pack {
   id: string;
@@ -23,10 +27,9 @@ interface Pack {
   price_inr: number;
   per_credit_inr?: number;
   features?: PackFeatures;
-  // Richer plan detail now returned by /billing/balance. Cast onto the
-  // generated Balance shape (client isn't regenerated).
   max_agents?: number;
   max_concurrent_calls?: number;
+  max_languages?: number;
   includes?: string[];
   highlight?: boolean; // "Most popular"
 }
@@ -40,13 +43,12 @@ interface Balance {
   // Sum of active per-call reservations (each live call briefly holds up to
   // 10 credits; the unused part returns when the call settles).
   on_hold_seconds?: number;
-  // ₹ money view at the client's effective per-minute rate. Cast onto the
-  // generated Balance shape (client isn't regenerated). money_left_inr is
-  // null when the org is unlimited.
   per_minute_inr?: number;
   money_left_inr?: number | null;
   money_spent_inr?: number;
   money_spent_today_inr?: number;
+  spent_seconds?: number;
+  spent_today_seconds?: number;
 }
 
 interface LedgerEntry {
@@ -181,30 +183,22 @@ export function CreditsSection() {
             ? "Unlimited"
             : `${minutes?.toLocaleString()} credits`}
         </p>
-        {/* ₹ worth of the remaining balance at the client's effective rate. */}
-        {!data.unlimited && data.money_left_inr != null && (
-          <p className="mt-1 text-xs font-medium text-muted-foreground tabular">
-            ≈ ₹{data.money_left_inr.toLocaleString("en-IN")}
-            {data.per_minute_inr != null &&
-              ` at ₹${data.per_minute_inr.toLocaleString("en-IN")}/min`}
-          </p>
-        )}
         {!data.unlimited && (
           <p className="mt-1 text-xs text-muted-foreground">
             1 credit = 1 minute of voice calling.
           </p>
         )}
-        {/* Today's spend (calendar day, IST), with all-time as a secondary. */}
-        {!data.unlimited && data.money_spent_today_inr != null && (
+        {/* Today's credits used, with all-time as a secondary. */}
+        {!data.unlimited && (data.spent_today_seconds != null || data.spent_seconds != null) && (
           <p className="mt-3 text-xs text-muted-foreground pt-2 border-t border-border">
-            Spent today:{" "}
+            Credits used today:{" "}
             <span className="font-semibold tabular text-foreground">
-              ₹{data.money_spent_today_inr.toLocaleString("en-IN")}
+              {(Math.round(((data.spent_today_seconds ?? 0) / 60) * 10) / 10).toLocaleString()}
             </span>
-            {data.money_spent_inr != null && (
+            {data.spent_seconds != null && (
               <span className="text-muted-foreground">
                 {" "}
-                · ₹{data.money_spent_inr.toLocaleString("en-IN")} all-time
+                · {(Math.round(((data.spent_seconds ?? 0) / 60) * 10) / 10).toLocaleString()} all-time
               </span>
             )}
           </p>
@@ -269,11 +263,12 @@ export function CreditsSection() {
 
                     <p className="mt-3 text-2xl font-semibold tabular text-foreground">
                       ₹{pack.price_inr.toLocaleString("en-IN")}
+                      <span className="text-sm font-normal text-muted-foreground">/mo</span>
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground tabular">
-                      {pack.minutes.toLocaleString()} credits
+                      {pack.minutes.toLocaleString()} included mins
                       {pack.per_credit_inr != null &&
-                        ` · ₹${pack.per_credit_inr}/credit`}
+                        ` · ₹${pack.per_credit_inr}/min overage`}
                     </p>
 
                     {pack.includes && pack.includes.length > 0 ? (

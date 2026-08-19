@@ -31,12 +31,12 @@ export default function CrmIntegrationPage() {
         icon={Database}
         eyebrow="Integration"
         title="Connect your CRM"
-        subtitle="Push every call to your CRM — contact, outcome, recording, transcript and sentiment."
+        subtitle="Push every call to Zoho, LeadSquared, Practo, GoHighLevel, or your Custom API."
         highlights={highlights}
       />
 
       <SectionCard
-        description="Automatically push every call to your CRM — upsert the contact and log the outcome, recording, transcript and sentiment. Connect your own CRM account and API token."
+        description="Automatically push every call to your CRM — upsert the contact and log the outcome, recording, transcript and sentiment. Connect Zoho CRM, LeadSquared, Practo, GoHighLevel, or a Custom Webhook API."
         actions={
           <Badge
             variant="brand"

@@ -132,7 +132,15 @@ def test_patch_profile_forwards_only_sent_fields():
     body = response.json()
     assert body["organization_id"] == 5
     assert body["plan"] == "growth"
-    assert body["features"] == {"api": True, "mcp": False, "build_with_ai": True}
+    assert body["features"] == {
+        "api": True,
+        "mcp": False,
+        "build_with_ai": True,
+        "crm": True,
+        "analytics_dashboard": True,
+        "advanced_analytics": False,
+        "advanced_whatsapp": False,
+    }
     assert body["pricing"]["setup_fee_inr"] == 300
 
 
@@ -399,7 +407,9 @@ def test_client_detail_assembles_all_sections():
     ):
         db.get_organization_with_users = AsyncMock(return_value=_org())
         db.list_telephony_configurations_by_provider = AsyncMock(return_value=[])
+        db.list_telephony_configurations = AsyncMock(return_value=[])
         db.get_organization_overview = AsyncMock(return_value=overview)
+        db.get_configuration = AsyncMock(return_value=None)
 
         response = client.get("/admin/clients/5")
 
@@ -409,7 +419,15 @@ def test_client_detail_assembles_all_sections():
     assert body["owner_email"] == "jane@example.test"
     assert body["plan"] == "growth"
     assert body["plan_override"] == "growth"
-    assert body["features"] == {"api": True, "mcp": False, "build_with_ai": True}
+    assert body["features"] == {
+        "api": True,
+        "mcp": False,
+        "build_with_ai": True,
+        "crm": True,
+        "analytics_dashboard": True,
+        "advanced_analytics": False,
+        "advanced_whatsapp": False,
+    }
     assert body["pricing"]["custom"]["per_minute_inr"] is True
     assert body["money"]["money_left_inr"] == 12.0
     assert body["kyc"]["status"] == "disabled"

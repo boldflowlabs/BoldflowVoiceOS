@@ -85,6 +85,7 @@ import {
   toggleClientLock,
 } from "@/lib/adminClients";
 import { useAuth } from "@/lib/auth";
+import { refreshSaasState } from "@/context/UserConfigContext";
 import { impersonateAsSuperadmin } from "@/lib/utils";
 
 const LOW_BALANCE_THRESHOLD_INR = 100;
@@ -285,12 +286,25 @@ export default function ClientsPage() {
       newCreditsNumber >= 0 &&
       newCreditsNumber <= 100000);
 
+  const PLAN_DEFAULT_CREDITS: Record<string, string> = {
+    trial: "30",
+    starter: "1000",
+    growth: "3000",
+    scale: "6000",
+    enterprise: "10000",
+  };
+
+  const handlePlanChange = (plan: string) => {
+    setNewPlan(plan);
+    setNewCredits(PLAN_DEFAULT_CREDITS[plan] ?? "");
+  };
+
   const resetCreateForm = () => {
     setNewEmail("");
     setNewPassword("");
     setNewName("");
-    setNewPlan("trial");
-    setNewCredits("");
+    setNewPlan("growth");
+    setNewCredits("3000");
   };
 
   const onCreateClient = async () => {
@@ -365,6 +379,7 @@ export default function ClientsPage() {
             : c
         )
       );
+      void refreshSaasState();
       toast.success(
         nextLocked
           ? `Client #${client.organization_id} locked in view-only mode`
@@ -706,8 +721,8 @@ export default function ClientsPage() {
                           <TooltipContent side="top">
                             <p>
                               {client.is_locked === false
-                                ? "Unlocked (Editing Allowed) — Click to lock in view-only mode"
-                                : "Locked (View Only) — Click to unlock client self-service editing"}
+                                ? "Unlocked — Click to lock in view-only safeguard mode"
+                                : "Managed View-Only — Protected from self-editing (Click to toggle)"}
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -890,7 +905,7 @@ export default function ClientsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="new-plan">Plan</Label>
-                  <Select value={newPlan} onValueChange={setNewPlan}>
+                  <Select value={newPlan} onValueChange={handlePlanChange}>
                     <SelectTrigger id="new-plan">
                       <SelectValue />
                     </SelectTrigger>

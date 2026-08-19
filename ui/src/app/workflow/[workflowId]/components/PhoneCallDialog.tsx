@@ -39,6 +39,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useUserConfig } from "@/context/UserConfigContext";
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { detailFromError } from "@/lib/apiError";
 
 interface PhoneCallDialogProps {
@@ -55,6 +56,7 @@ export const PhoneCallDialog = ({
     user,
 }: PhoneCallDialogProps) => {
     const router = useRouter();
+    const { isAdmin } = useIsAdmin();
     const { refreshConfig } = useUserConfig();
     const [preferences, setPreferences] = useState<OrganizationPreferences>({});
     const [preferencesLoaded, setPreferencesLoaded] = useState(false);
@@ -211,7 +213,7 @@ export const PhoneCallDialog = ({
 
     const handleConfigureContinue = () => {
         onOpenChange(false);
-        router.push('/telephony-configurations');
+        router.push(isAdmin ? '/telephony-configurations' : '/phone-numbers');
     };
 
     const savePhoneNumberPreference = async () => {
@@ -293,10 +295,11 @@ export const PhoneCallDialog = ({
     const renderConfigurationNeeded = () => (
         <>
             <DialogHeader>
-                <DialogTitle>Configure Telephony</DialogTitle>
+                <DialogTitle>{isAdmin ? "Configure Telephony" : "Phone Line Needed"}</DialogTitle>
                 <DialogDescription>
-                    You need to configure your telephony settings before making phone calls.
-                    You will be redirected to the telephony configuration page.
+                    {isAdmin
+                        ? "You need to configure your telephony settings before making phone calls. You will be redirected to the telephony configuration page."
+                        : "No active phone line is assigned to this agent yet. You will be redirected to the Phone Numbers overview."}
                 </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -394,10 +397,10 @@ export const PhoneCallDialog = ({
                     variant="outline"
                     onClick={() => {
                         onOpenChange(false);
-                        router.push('/telephony-configurations');
+                        router.push(isAdmin ? '/telephony-configurations' : '/phone-numbers');
                     }}
                 >
-                    Configure Telephony
+                    {isAdmin ? "Configure Telephony" : "Phone Numbers"}
                 </Button>
                 <div className="flex gap-2 flex-1 justify-end">
                     <DialogClose asChild>

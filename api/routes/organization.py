@@ -1441,7 +1441,7 @@ _CRM_KEY = OrganizationConfigurationKey.CRM_PROVIDERS.value
 
 @router.get("/crm-config", response_model=CRMConfigResponse)
 async def get_crm_config(user: UserModel = Depends(get_user)):
-    """Return the org's CRM sync config (api_key masked)."""
+    """Return the org's CRM sync config (api_key and secret_key masked)."""
     if not user.selected_organization_id:
         raise HTTPException(status_code=400, detail="no_organization_selected")
     raw = await db_client.get_configuration_value(
@@ -1452,12 +1452,14 @@ async def get_crm_config(user: UserModel = Depends(get_user)):
     cfg = CRMConfig.model_validate(raw)
     if cfg.api_key:
         cfg.api_key = mask_key(decrypt_secret(cfg.api_key))
+    if cfg.secret_key:
+        cfg.secret_key = mask_key(decrypt_secret(cfg.secret_key))
     return CRMConfigResponse(config=cfg)
 
 
 @router.put("/crm-config", response_model=CRMConfigResponse)
 async def save_crm_config(body: CRMConfig, user: UserModel = Depends(get_user)):
-    """Upsert the org's CRM config. A resubmitted masked api_key is preserved."""
+    """Upsert the org's CRM config. Resubmitted masked keys are preserved."""
     if not user.selected_organization_id:
         raise HTTPException(status_code=400, detail="no_organization_selected")
     existing = await db_client.get_configuration_value(
@@ -1465,15 +1467,21 @@ async def save_crm_config(body: CRMConfig, user: UserModel = Depends(get_user)):
     )
     if existing:
         prev = CRMConfig.model_validate(existing)
-        prev_key = decrypt_secret(prev.api_key)
+        prev_key = decrypt_secret(prev.api_key) if prev.api_key else ""
         if body.api_key and prev_key and is_mask_of(body.api_key, prev_key):
             body.api_key = prev_key
+        prev_secret = decrypt_secret(prev.secret_key) if prev.secret_key else ""
+        if body.secret_key and prev_secret and is_mask_of(body.secret_key, prev_secret):
+            body.secret_key = prev_secret
     stored = body.model_dump()
-    stored["api_key"] = encrypt_secret(body.api_key)
+    stored["api_key"] = encrypt_secret(body.api_key) if body.api_key else ""
+    stored["secret_key"] = encrypt_secret(body.secret_key) if body.secret_key else ""
     await db_client.upsert_configuration(user.selected_organization_id, _CRM_KEY, stored)
     masked = body.model_copy()
     if masked.api_key:
         masked.api_key = mask_key(masked.api_key)
+    if masked.secret_key:
+        masked.secret_key = mask_key(masked.secret_key)
     return CRMConfigResponse(config=masked)
 
 
@@ -1496,8 +1504,11 @@ async def test_crm_config(body: CRMTestRequest, user: UserModel = Depends(get_us
     if not raw:
         raise HTTPException(status_code=400, detail="crm_not_configured")
     cfg = CRMConfig.model_validate(raw)
-    cfg.api_key = decrypt_secret(cfg.api_key)
-    if not cfg.api_key:
+    if cfg.api_key:
+        cfg.api_key = decrypt_secret(cfg.api_key)
+    if cfg.secret_key:
+        cfg.secret_key = decrypt_secret(cfg.secret_key)
+    if not (cfg.api_key or cfg.custom_webhook_url):
         raise HTTPException(status_code=400, detail="crm_config_incomplete")
 
     from api.services.integrations.crm.base import CallLog

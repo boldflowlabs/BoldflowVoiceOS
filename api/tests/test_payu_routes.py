@@ -22,8 +22,13 @@ class _Req:
         return self._json
 
 
-def _user(org=4):
-    return SimpleNamespace(id=7, selected_organization_id=org, email="amit@x.test")
+def _user(org=4, is_superuser=False):
+    return SimpleNamespace(
+        id=7,
+        selected_organization_id=org,
+        email="amit@x.test",
+        is_superuser=is_superuser,
+    )
 
 
 @pytest.mark.asyncio
@@ -43,19 +48,24 @@ async def test_balance_carries_money_fields(monkeypatch):
                 "per_minute_inr": 8.0,
                 "money_left_inr": 16000.0,
                 "spent_seconds": 23610,
+                "spent_today_seconds": 600,
                 "money_spent_inr": 3148.0,
+                "money_spent_today_inr": 100.0,
             }
         ),
     )
     with (
         patch.object(billing.db_client, "get_free_call_seconds_remaining", new=AsyncMock(return_value=120000)),
         patch.object(billing.db_client, "sum_on_hold_seconds", new=AsyncMock(return_value=0)),
+        patch.object(billing.db_client, "set_organization_unmetered", new=AsyncMock()),
     ):
         res = await billing.get_balance(user=_user())
 
     assert res["per_minute_inr"] == 8.0
     assert res["money_left_inr"] == 16000.0
     assert res["money_spent_inr"] == 3148.0
+    assert res["spent_seconds"] == 23610
+    assert res["spent_today_seconds"] == 600
     # Existing fields still present.
     assert res["balance_seconds"] == 120000
     assert res["unlimited"] is False
@@ -78,13 +88,16 @@ async def test_balance_money_left_none_when_unlimited(monkeypatch):
                 "per_minute_inr": 8.0,
                 "money_left_inr": None,
                 "spent_seconds": 0,
+                "spent_today_seconds": 0,
                 "money_spent_inr": 0.0,
+                "money_spent_today_inr": 0.0,
             }
         ),
     )
     with (
         patch.object(billing.db_client, "get_free_call_seconds_remaining", new=AsyncMock(return_value=None)),
         patch.object(billing.db_client, "sum_on_hold_seconds", new=AsyncMock(return_value=0)),
+        patch.object(billing.db_client, "set_organization_unmetered", new=AsyncMock()),
     ):
         res = await billing.get_balance(user=_user())
 
@@ -116,11 +129,11 @@ async def test_payu_initiate_creates_txn_and_returns_signed_params(monkeypatch):
 
     assert res["payment_url"] == "https://test.payu.in/_payment"
     assert res["params"]["key"] == "XxWLV8"
-    assert res["params"]["amount"] == "2399.00"
+    assert res["params"]["amount"] == "9999.00"
     kw = create.await_args.kwargs
     assert kw["pack_id"] == "starter"
-    assert kw["amount_paise"] == 239900
-    assert kw["seconds"] == 300 * 60
+    assert kw["amount_paise"] == 999900
+    assert kw["seconds"] == 1000 * 60
     assert kw["razorpay_order_id"].startswith("a4y")  # PayU txnid in the gateway slot
 
 

@@ -15,15 +15,43 @@ from api.db import db_client
 from api.enums import OrganizationConfigurationKey
 from api.schemas.crm_config import CRMConfig
 from api.services.integrations.crm.base import CallLog, CRMProvider
+from api.services.integrations.crm.providers.custom_api import CustomApiProvider
 from api.services.integrations.crm.providers.gohighlevel import GoHighLevelProvider
+from api.services.integrations.crm.providers.leadsquared import LeadSquaredProvider
+from api.services.integrations.crm.providers.practo import PractoProvider
+from api.services.integrations.crm.providers.zoho import ZohoCRMProvider
 from api.utils.common import get_backend_endpoints
 from api.utils.secret_crypto import decrypt_secret
 
 
 def _resolve_provider(cfg: CRMConfig) -> Optional[CRMProvider]:
-    if cfg.provider == "gohighlevel":
+    if cfg.provider == "zoho":
+        return ZohoCRMProvider(
+            api_key=cfg.api_key,
+            region_host=cfg.region_host,
+            pipeline_id=cfg.pipeline_id,
+        )
+    elif cfg.provider == "leadsquared":
+        return LeadSquaredProvider(
+            access_key=cfg.api_key,
+            secret_key=cfg.secret_key,
+            region_host=cfg.region_host,
+        )
+    elif cfg.provider == "practo":
+        return PractoProvider(
+            api_key=cfg.api_key,
+            practice_id=cfg.location_id,
+            region_host=cfg.region_host,
+        )
+    elif cfg.provider == "gohighlevel":
         return GoHighLevelProvider(api_key=cfg.api_key, location_id=cfg.location_id)
-    # leadsquared / kylas / hubspot adapters slot in here later.
+    elif cfg.provider == "custom_api":
+        return CustomApiProvider(
+            custom_webhook_url=cfg.custom_webhook_url,
+            api_key=cfg.api_key,
+            secret_key=cfg.secret_key,
+            pipeline_id=cfg.pipeline_id,
+        )
     logger.warning(f"CRM: unknown provider '{cfg.provider}'")
     return None
 
@@ -98,8 +126,11 @@ async def send_post_call_crm(
     except Exception as exc:
         logger.warning(f"CRM config invalid for org {organization_id}: {exc}")
         return
-    cfg.api_key = decrypt_secret(cfg.api_key)  # encrypted at rest
-    if not (cfg.enabled and cfg.api_key):
+    if cfg.api_key:
+        cfg.api_key = decrypt_secret(cfg.api_key)  # encrypted at rest
+    if cfg.secret_key:
+        cfg.secret_key = decrypt_secret(cfg.secret_key)
+    if not (cfg.enabled and (cfg.api_key or cfg.custom_webhook_url)):
         return
 
     # Idempotency — never double-write if the post-call task re-runs.

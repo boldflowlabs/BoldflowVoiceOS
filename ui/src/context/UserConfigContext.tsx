@@ -29,6 +29,10 @@ export interface PlanFeatures {
     api: boolean;
     mcp: boolean;
     build_with_ai: boolean;
+    crm: boolean;
+    analytics_dashboard: boolean;
+    advanced_analytics: boolean;
+    advanced_whatsapp: boolean;
 }
 
 // SaaS-only state layered on top of upstream's OrgConfig context.
@@ -53,12 +57,22 @@ interface SaasUserState {
     permissionsLoaded: boolean;
 }
 
+const DEFAULT_PLAN_FEATURES: PlanFeatures = {
+    api: false,
+    mcp: false,
+    build_with_ai: false,
+    crm: false,
+    analytics_dashboard: false,
+    advanced_analytics: false,
+    advanced_whatsapp: false,
+};
+
 const INITIAL_SAAS_STATE: SaasUserState = {
     isSuperuser: false,
     superuserLoaded: false,
     isLocked: true,
     plan: 'trial',
-    planFeatures: { api: false, mcp: false, build_with_ai: false },
+    planFeatures: DEFAULT_PLAN_FEATURES,
     planLoaded: false,
     permissionsLoaded: false,
 };
@@ -103,7 +117,7 @@ function useSaasUserState(): SaasUserState {
                 isSuperuser: false,
                 isLocked: true,
                 plan: 'trial',
-                planFeatures: { api: false, mcp: false, build_with_ai: false },
+                planFeatures: DEFAULT_PLAN_FEATURES,
                 superuserLoaded: true,
                 planLoaded: true,
                 permissionsLoaded: true,
@@ -137,6 +151,10 @@ function useSaasUserState(): SaasUserState {
                         api: !!data?.features?.api,
                         mcp: !!data?.features?.mcp,
                         build_with_ai: !!data?.features?.build_with_ai,
+                        crm: !!data?.features?.crm,
+                        analytics_dashboard: !!data?.features?.analytics_dashboard,
+                        advanced_analytics: !!data?.features?.advanced_analytics,
+                        advanced_whatsapp: !!data?.features?.advanced_whatsapp,
                     },
                     superuserLoaded: true,
                     planLoaded: true,
@@ -147,7 +165,7 @@ function useSaasUserState(): SaasUserState {
                     isSuperuser: false,
                     isLocked: true,
                     plan: 'trial',
-                    planFeatures: { api: false, mcp: false, build_with_ai: false },
+                    planFeatures: DEFAULT_PLAN_FEATURES,
                     superuserLoaded: true,
                     planLoaded: true,
                     permissionsLoaded: true,
@@ -163,6 +181,36 @@ function useSaasUserState(): SaasUserState {
     return state;
 }
 
+export async function refreshSaasState() {
+    isFetchingSaasState = false;
+    try {
+        const response = await getAuthUserApiV1UserAuthUserGet();
+        const data = response.data as
+            | { is_superuser?: boolean; plan?: string; features?: Partial<PlanFeatures>; is_locked?: boolean }
+            | undefined;
+        const isSuper = !!data?.is_superuser;
+        setSaasState({
+            isSuperuser: isSuper,
+            isLocked: isSuper ? false : Boolean(data?.is_locked ?? true),
+            plan: data?.plan ?? 'trial',
+            planFeatures: {
+                api: !!data?.features?.api,
+                mcp: !!data?.features?.mcp,
+                build_with_ai: !!data?.features?.build_with_ai,
+                crm: !!data?.features?.crm,
+                analytics_dashboard: !!data?.features?.analytics_dashboard,
+                advanced_analytics: !!data?.features?.advanced_analytics,
+                advanced_whatsapp: !!data?.features?.advanced_whatsapp,
+            },
+            superuserLoaded: true,
+            planLoaded: true,
+            permissionsLoaded: true,
+        });
+    } catch {
+        // Non-fatal: preserve current snapshot on transient error
+    }
+}
+
 /**
  * Legacy SaaS hook. Returns the full union shape: every field exposed by
  * upstream's `useOrgConfig()` (orgContext, userConfig, saveUserConfig, loading,
@@ -173,9 +221,17 @@ export function useUserConfig() {
     const orgConfig = useOrgConfig();
     const saasState = useSaasUserState();
 
+    const refreshConfig = async () => {
+        await Promise.allSettled([
+            orgConfig.refreshConfig(),
+            refreshSaasState(),
+        ]);
+    };
+
     return {
         ...orgConfig,
         ...saasState,
+        refreshConfig,
     };
 }
 

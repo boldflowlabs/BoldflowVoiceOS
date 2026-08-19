@@ -14,11 +14,13 @@ from pydantic import BaseModel, Field
 
 class CRMConfig(BaseModel):
     enabled: bool = False
-    provider: str = "gohighlevel"  # gohighlevel | leadsquared | kylas | hubspot (future)
-    api_key: str = ""  # sensitive — masked on read, encrypted at rest
-    # GoHighLevel sub-account (Location) id; data-center/host for region-bound CRMs.
-    location_id: str = ""
-    region_host: str = ""  # e.g. LeadSquared api-inXX host (provider-specific)
+    provider: str = "zoho"  # zoho | leadsquared | practo | gohighlevel | custom_api
+    api_key: str = ""  # sensitive (access token, bearer token, API key) — masked on read, encrypted at rest
+    secret_key: str = ""  # sensitive (LeadSquared secret key, custom API auth signature) — masked on read, encrypted at rest
+    location_id: str = ""  # Location ID (GHL), Practice / Clinic ID (Practo)
+    region_host: str = ""  # LeadSquared host (api-in21.leadsquared.com), Zoho data center domain (zohoapis.in / zohoapis.com)
+    custom_webhook_url: str = ""  # Endpoint for Custom API / Webhook integration
+    pipeline_id: str = ""  # Target pipeline / stage / module ID (for multi-pipeline sync)
     # Empty = log for any disposition; else only these mapped dispositions.
     trigger_dispositions: List[str] = Field(default_factory=list)
     # Empty = sync regardless of sentiment; else only when overall_sentiment matches

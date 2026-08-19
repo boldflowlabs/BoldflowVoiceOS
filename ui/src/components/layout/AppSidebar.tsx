@@ -138,7 +138,7 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         url: "/telephony-configurations",
         icon: Phone,
         showsTelephonyWarning: true,
-        lockedForClients: true,
+        adminOnly: true,
       },
       {
         title: "Phone Numbers",

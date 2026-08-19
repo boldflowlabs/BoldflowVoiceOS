@@ -78,10 +78,12 @@ async def get_balance(user: UserModel = Depends(get_user)):
         "plan": plan,
         "features": features_for_plan(plan if not user.is_superuser else "growth"),
         # ₹ view: rate + balance worth (None when unlimited) + spend-to-date.
-        "per_minute_inr": money["per_minute_inr"],
-        "money_left_inr": None if is_unlimited else money["money_left_inr"],
-        "money_spent_inr": money["money_spent_inr"],
-        "money_spent_today_inr": money["money_spent_today_inr"],
+        "per_minute_inr": money.get("per_minute_inr"),
+        "money_left_inr": None if is_unlimited else money.get("money_left_inr"),
+        "money_spent_inr": money.get("money_spent_inr"),
+        "money_spent_today_inr": money.get("money_spent_today_inr"),
+        "spent_seconds": money.get("spent_seconds", 0),
+        "spent_today_seconds": money.get("spent_today_seconds", 0),
     }
 
 

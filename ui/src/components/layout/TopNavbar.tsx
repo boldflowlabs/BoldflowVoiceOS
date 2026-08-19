@@ -201,16 +201,17 @@ export function TopNavbar() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuItem onClick={() => router.push("/telephony-configurations")} className="cursor-pointer flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Phone className="mr-2 h-4 w-4 text-primary" />
-                    Configurations
-                  </div>
-                  {!isAdmin && <Lock className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
-                  {hasTelephonyWarning && (
-                    <Badge variant="warning" className="ml-auto text-[9px] px-1 py-0">Alert</Badge>
-                  )}
-                </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => router.push("/telephony-configurations")} className="cursor-pointer flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Phone className="mr-2 h-4 w-4 text-primary" />
+                      Configurations
+                    </div>
+                    {hasTelephonyWarning && (
+                      <Badge variant="warning" className="ml-auto text-[9px] px-1 py-0">Alert</Badge>
+                    )}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => router.push("/phone-numbers")} className="cursor-pointer">
                   <PhoneCall className="mr-2 h-4 w-4 text-primary" />
                   Phone Numbers
@@ -426,16 +427,18 @@ export function TopNavbar() {
             >
               <Megaphone className="h-4 w-4" /> Campaigns
             </Link>
-            <Link
-              href="/telephony-configurations"
-              onClick={() => setMobileMenuOpen(false)}
-              className={cn(
-                "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium",
-                isRouteActive("/telephony-configurations") ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:bg-muted"
-              )}
-            >
-              <Phone className="h-4 w-4" /> Telephony
-            </Link>
+            {isAdmin && (
+              <Link
+                href="/telephony-configurations"
+                onClick={() => setMobileMenuOpen(false)}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium",
+                  isRouteActive("/telephony-configurations") ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <Phone className="h-4 w-4" /> Telephony
+              </Link>
+            )}
             <Link
               href="/analytics"
               onClick={() => setMobileMenuOpen(false)}

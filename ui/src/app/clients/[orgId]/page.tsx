@@ -114,6 +114,7 @@ import {
   updateAdminProfile,
 } from "@/lib/adminClients";
 import { useAuth } from "@/lib/auth";
+import { refreshSaasState } from "@/context/UserConfigContext";
 import { impersonateAsSuperadmin } from "@/lib/utils";
 
 const DERIVED = "__derived__";
@@ -646,6 +647,7 @@ export default function ClientDetailPage() {
       const token = await getToken();
       await toggleClientLock(token, orgId, nextLocked);
       setDetail((prev) => (prev ? { ...prev, is_locked: nextLocked } : prev));
+      void refreshSaasState();
       toast.success(
         nextLocked
           ? "Client account locked in view-only mode"
@@ -952,7 +954,7 @@ export default function ClientDetailPage() {
                         Client Access Mode & Safety Restrictions
                       </CardTitle>
                       <CardDescription>
-                        Control whether this client can edit workflow agents and settings or is restricted to view-only mode.
+                        Safeguard client workspace in view-only mode. All voice agents, canvas configurations, AI models, and telephony trunks are managed and deployed by the Boldflow Labs team.
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -960,18 +962,18 @@ export default function ClientDetailPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-sm">
-                              {detail.is_locked === false ? "Self-Service Editing Enabled" : "View-Only Restriction Active"}
+                              {detail.is_locked === false ? "Self-Service Editing Enabled" : "Managed View-Only Mode Active"}
                             </span>
                             {detail.is_locked === false ? (
                               <Badge className="bg-emerald-600 text-xs">Unlocked</Badge>
                             ) : (
-                              <Badge variant="secondary" className="border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-xs">Locked</Badge>
+                              <Badge variant="secondary" className="border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-xs">Protected</Badge>
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
                             {detail.is_locked === false
-                              ? "Client has full permission to create, edit, and publish voice agents, telephony trunks, AI models, and tools."
-                              : "Voice agents, canvas editing, telephony trunks, and AI models are locked in view-only mode to prevent campaign errors."}
+                              ? "Self-service editing is unlocked. Boldflow Labs team can build and modify agents directly or via Impersonation."
+                              : "Voice agents, canvas editing, telephony trunks, AI models, and tools are secured in view-only mode. Boldflow Labs team manages all updates."}
                           </p>
                         </div>
                         <Button

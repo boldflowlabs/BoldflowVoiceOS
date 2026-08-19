@@ -169,13 +169,20 @@ export default function InboundPage() {
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                <Link
-                                                    href={`/telephony-configurations/${config.id}`}
-                                                    className="inline-flex items-center gap-1.5 hover:underline"
-                                                >
-                                                    <span className="truncate">{config.name}</span>
-                                                    <Badge variant="secondary">{config.provider}</Badge>
-                                                </Link>
+                                                {isAdmin ? (
+                                                    <Link
+                                                        href={`/telephony-configurations/${config.id}`}
+                                                        className="inline-flex items-center gap-1.5 hover:underline"
+                                                    >
+                                                        <span className="truncate">{config.name}</span>
+                                                        <Badge variant="secondary">{config.provider}</Badge>
+                                                    </Link>
+                                                ) : (
+                                                    <div className="inline-flex items-center gap-1.5">
+                                                        <span className="truncate">{config.name}</span>
+                                                        <Badge variant="secondary">{config.provider}</Badge>
+                                                    </div>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 {number.inbound_workflow_id ? (

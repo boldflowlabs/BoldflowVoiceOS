@@ -30,9 +30,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator';
 import { CampaignRuns } from '@/components/workflow-runs';
 import { useAuth } from '@/lib/auth';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 export default function CampaignDetailPage() {
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
+    const { isAdmin } = useIsAdmin();
     const router = useRouter();
     const params = useParams();
     const searchParams = useSearchParams();
@@ -654,16 +656,22 @@ export default function CampaignDetailPage() {
                                     )}
                                 </dd>
                             </div>
-                            <div>
+                                <div>
                                 <dt className="text-sm font-medium">Telephony Configuration</dt>
                                 <dd className="mt-1">
                                     {campaign.telephony_configuration_id ? (
-                                        <button
-                                            onClick={() => router.push(`/telephony-configurations/${campaign.telephony_configuration_id}`)}
-                                            className="text-zinc-700 underline underline-offset-2 hover:text-zinc-900"
-                                        >
-                                            {campaign.telephony_configuration_name || `Configuration #${campaign.telephony_configuration_id}`}
-                                        </button>
+                                        isAdmin ? (
+                                            <button
+                                                onClick={() => router.push(`/telephony-configurations/${campaign.telephony_configuration_id}`)}
+                                                className="text-zinc-700 underline underline-offset-2 hover:text-zinc-900"
+                                            >
+                                                {campaign.telephony_configuration_name || `Configuration #${campaign.telephony_configuration_id}`}
+                                            </button>
+                                        ) : (
+                                            <span className="text-zinc-700">
+                                                {campaign.telephony_configuration_name || `Configuration #${campaign.telephony_configuration_id}`}
+                                            </span>
+                                        )
                                     ) : (
                                         <span className="text-muted-foreground">Not assigned</span>
                                     )}

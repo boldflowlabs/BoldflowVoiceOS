@@ -33,14 +33,14 @@ export function LockedSafeguardBanner({
   }
 
   const defaultTitle = `Managed by ${BRAND.name} • View-Only Mode`;
-  const defaultDescription = `To protect your live voice operations from accidental changes or errors, ${featureName} is maintained in safe view-only mode by ${BRAND.name}. If you need self-editing access or want to request changes, feel free to contact us.`;
+  const defaultDescription = `To protect your live voice operations and ensure peak reliability, ${featureName} is maintained in view-only mode and professionally managed by ${BRAND.name}. If you would like to request changes, prompt updates, or new configurations, please contact our team.`;
 
   const displayTitle = title || defaultTitle;
   const displayDescription = description || defaultDescription;
 
-  const mailtoSubject = encodeURIComponent(`Access / Edit Request for ${featureName} — ${BRAND.name}`);
+  const mailtoSubject = encodeURIComponent(`Change Request for ${featureName} — ${BRAND.name}`);
   const mailtoBody = encodeURIComponent(
-    `Hello ${BRAND.name} Support Team,\n\nI would like to request changes or self-editing permissions for ${featureName}.\n\nPlease let me know how to proceed.\n\nThank you!`
+    `Hello ${BRAND.name} Team,\n\nI would like to request changes / updates for ${featureName}.\n\nDetails of requested updates:\n- \n\nThank you!`
   );
   const mailtoUrl = `mailto:${BRAND.supportEmail}?subject=${mailtoSubject}&body=${mailtoBody}`;
 

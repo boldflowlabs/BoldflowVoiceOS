@@ -29,6 +29,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/lib/auth';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 import CampaignAdvancedSettings, { getTimezoneValue, type TimeSlot } from '../CampaignAdvancedSettings';
 import CsvColumnMapping from '../CsvColumnMapping';
@@ -36,6 +37,7 @@ import CsvUploadSelector from '../CsvUploadSelector';
 
 export default function NewCampaignPage() {
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
+    const { isAdmin } = useIsAdmin();
     const router = useRouter();
 
     // Form state
@@ -451,14 +453,20 @@ export default function NewCampaignPage() {
                                 <Label htmlFor="telephony-config">Telephony Configuration</Label>
                                 {!isLoadingTelephonyConfigs && telephonyConfigs.length === 0 ? (
                                     <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                                        No telephony configurations yet.{' '}
-                                        <Link
-                                            href="/telephony-configurations"
-                                            className="underline text-foreground"
-                                        >
-                                            Add one
-                                        </Link>{' '}
-                                        to create a campaign.
+                                        No telephony lines configured yet.{' '}
+                                        {isAdmin ? (
+                                            <>
+                                                <Link
+                                                    href="/telephony-configurations"
+                                                    className="underline text-foreground"
+                                                >
+                                                    Add one
+                                                </Link>{' '}
+                                                to create a campaign.
+                                            </>
+                                        ) : (
+                                            <>Please contact support to provision a phone line before creating a campaign.</>
+                                        )}
                                     </div>
                                 ) : (
                                     <Select

@@ -20,7 +20,7 @@ export function useIsAdmin(): { isAdmin: boolean; isLoaded: boolean } {
     const { isSuperuser, isLocked, superuserLoaded } = useUserConfig();
 
     // Superusers always have full admin privileges.
-    // Client organizations have editing privileges only when explicitly unlocked by the agency.
+    // Client organizations have editing privileges when explicitly unlocked (isLocked === false).
     const isAdmin = Boolean(isSuperuser) || (!Boolean(isSuperuser) && isLocked === false);
 
     return {

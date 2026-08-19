@@ -92,16 +92,29 @@ async def append_note(organization_id: int, *, by_user_id: int, text: str) -> di
     return await _save_admin_profile(organization_id, profile)
 
 
-def pricing_from_profile(profile: dict) -> dict:
-    """Effective pricing (INR) with global-default fallback."""
+def pricing_from_profile(profile: dict, plan: Optional[str] = None) -> dict:
+    """Effective pricing (INR) with plan-based rate and global-default fallback."""
+    from api.constants import CREDIT_PACKS
+
     p = profile.get("pricing") or {}
     pm = p.get("per_minute_inr")
     npr = p.get("number_price_inr")
     sf = p.get("setup_fee_inr")
-    return {
-        "per_minute_inr": float(pm)
+
+    plan_rate = None
+    if plan:
+        pack = next((pack for pack in CREDIT_PACKS if pack["id"] == plan), None)
+        if pack and pack.get("per_credit_inr") is not None:
+            plan_rate = float(pack["per_credit_inr"])
+
+    effective_pm = (
+        float(pm)
         if pm is not None
-        else float(CAMPAIGN_SPEND_RATE_INR_PER_MINUTE),
+        else (plan_rate if plan_rate is not None else float(CAMPAIGN_SPEND_RATE_INR_PER_MINUTE))
+    )
+
+    return {
+        "per_minute_inr": effective_pm,
         "number_price_inr": int(npr) if npr is not None else int(NUMBER_PRICE_INR),
         "setup_fee_inr": int(sf) if sf is not None else 0,
         # Which fields are custom (for the admin UI to show "custom" badges).
@@ -114,8 +127,12 @@ def pricing_from_profile(profile: dict) -> dict:
 
 
 async def get_org_pricing(organization_id: int) -> dict:
-    """Effective per-client pricing (INR), falling back to global defaults."""
-    return pricing_from_profile(await get_admin_profile(organization_id))
+    """Effective per-client pricing (INR), falling back to plan rates / global defaults."""
+    from api.services.plans import get_org_plan
+
+    profile = await get_admin_profile(organization_id)
+    plan = await get_org_plan(organization_id)
+    return pricing_from_profile(profile, plan=plan)
 
 
 async def is_org_suspended(organization_id: Optional[int]) -> bool:

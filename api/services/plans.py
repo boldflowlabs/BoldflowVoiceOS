@@ -26,16 +26,29 @@ PLAN_RANK = {TRIAL_PLAN: 0, "starter": 1, "growth": 2, "scale": 3, ENTERPRISE_PL
 # trial + enterprise).
 ASSIGNABLE_PLANS = (TRIAL_PLAN, "starter", "growth", "scale", ENTERPRISE_PLAN)
 
-_DEFAULT_FEATURES = {"api": False, "mcp": False, "build_with_ai": False}
+_DEFAULT_FEATURES = {
+    "api": False,
+    "mcp": False,
+    "build_with_ai": False,
+    "crm": False,
+    "analytics_dashboard": False,
+    "advanced_analytics": False,
+    "advanced_whatsapp": False,
+}
 
 
 def features_for_plan(plan: str) -> dict:
-    """The feature flags for a plan tier. Trial / unknown tiers get nothing.
-
-    build_with_ai (the prompt-to-agent builder) is Growth+ / Enterprise only.
-    """
+    """The feature flags for a plan tier. Trial / unknown tiers get nothing."""
     if plan == ENTERPRISE_PLAN:
-        return {"api": True, "mcp": True, "build_with_ai": True}
+        return {
+            "api": True,
+            "mcp": True,
+            "build_with_ai": True,
+            "crm": True,
+            "analytics_dashboard": True,
+            "advanced_analytics": True,
+            "advanced_whatsapp": True,
+        }
     pack = next((p for p in CREDIT_PACKS if p["id"] == plan), None)
     feats = pack.get("features") if pack else None
     if isinstance(feats, dict):
@@ -43,6 +56,10 @@ def features_for_plan(plan: str) -> dict:
             "api": bool(feats.get("api")),
             "mcp": bool(feats.get("mcp")),
             "build_with_ai": bool(feats.get("build_with_ai")),
+            "crm": bool(feats.get("crm")),
+            "analytics_dashboard": bool(feats.get("analytics_dashboard")),
+            "advanced_analytics": bool(feats.get("advanced_analytics")),
+            "advanced_whatsapp": bool(feats.get("advanced_whatsapp")),
         }
     return dict(_DEFAULT_FEATURES)
 

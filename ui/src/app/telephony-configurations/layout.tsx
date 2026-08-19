@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
+import { AdminGuard } from "@/components/AdminGuard";
 
-// Client-accessible: orgs manage their telephony (numbers, caller IDs) here.
+// Protected: only Boldflow Labs admins can view or edit telephony configurations.
 export default function TelephonyConfigurationsLayout({ children }: { children: ReactNode }) {
-    return <>{children}</>;
+    return <AdminGuard>{children}</AdminGuard>;
 }

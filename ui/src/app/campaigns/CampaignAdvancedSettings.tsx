@@ -6,6 +6,7 @@ import { useId } from 'react';
 import TimezoneSelect, { type ITimezoneOption } from 'react-timezone-select';
 
 import { Button } from '@/components/ui/button';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -125,6 +126,7 @@ export default function CampaignAdvancedSettings({
     circuitBreakerMinCalls, onCircuitBreakerMinCallsChange,
 }: CampaignAdvancedSettingsProps) {
     const timezoneSelectId = useId();
+    const { isAdmin } = useIsAdmin();
 
     return (
         <div className="space-y-6">
@@ -146,12 +148,22 @@ export default function CampaignAdvancedSettings({
                 </p>
                 {channelCapacity > 0 && channelCapacity < orgConcurrentLimit && (
                     <p className="text-sm text-amber-600 dark:text-amber-400">
-                        Concurrency is limited to {channelCapacity} by the trunk&apos;s channel capacity. If your trunk has more channels, raise it in <Link href="/telephony-configurations" className="underline font-medium">Telephony Configuration</Link>.
+                        Concurrency is limited to {channelCapacity} by the trunk&apos;s channel capacity.{' '}
+                        {isAdmin ? (
+                            <>If your trunk has more channels, raise it in <Link href="/telephony-configurations" className="underline font-medium">Telephony Configuration</Link>.</>
+                        ) : (
+                            <>Contact support to increase your allocated channel capacity.</>
+                        )}
                     </p>
                 )}
                 {fromNumbersCount === 0 && (
                     <p className="text-sm text-amber-600 dark:text-amber-400">
-                        No phone numbers configured. Add a number in <Link href="/telephony-configurations" className="underline font-medium">Telephony Configuration</Link> before running the campaign.
+                        No phone numbers configured.{' '}
+                        {isAdmin ? (
+                            <>Add a number in <Link href="/telephony-configurations" className="underline font-medium">Telephony Configuration</Link> before running the campaign.</>
+                        ) : (
+                            <>View active caller IDs in <Link href="/phone-numbers" className="underline font-medium">Phone Numbers</Link> or request a line from support.</>
+                        )}
                     </p>
                 )}
             </div>
