@@ -66,8 +66,7 @@ ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
     NEXT_PUBLIC_CLIENT_MODE=$NEXT_PUBLIC_CLIENT_MODE
 
 # Build the application with standalone mode
-# Set Node.js heap limit to 2048MB to keep Docker build safe from host OOM
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_TELEMETRY_DISABLED="1"
 RUN npm run build && \
     rm -rf /tmp/* /root/.npm /root/.next/cache
