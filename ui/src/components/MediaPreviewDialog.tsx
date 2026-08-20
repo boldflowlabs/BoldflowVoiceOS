@@ -61,7 +61,7 @@ function CustomAudioPlayer({
 
         const audio = new Audio();
         audioRef.current = audio;
-        audio.preload = 'metadata';
+        audio.preload = 'auto';
 
         const handleTimeUpdate = () => {
             if (isMounted) setCurrentTime(audio.currentTime);
@@ -72,7 +72,6 @@ function CustomAudioPlayer({
                 if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
                     setDuration(audio.duration);
                 }
-                setIsLoaded(true);
                 setLoadError(null);
             }
         };
@@ -100,6 +99,7 @@ function CustomAudioPlayer({
                         blobUrl = URL.createObjectURL(blob);
                         audio.src = blobUrl;
                         audio.load();
+                        setLoadError(null);
                         return;
                     }
                 }
@@ -109,7 +109,6 @@ function CustomAudioPlayer({
 
             if (isMounted) {
                 setLoadError('Failed to load audio stream');
-                setIsLoaded(false);
             }
         };
 
@@ -143,6 +142,17 @@ function CustomAudioPlayer({
                 audioRef.current.pause();
                 setIsPlaying(false);
             } else {
+                // If there was a load error or audio has no source yet, try to load and play
+                if (audioRef.current.error || !audioRef.current.src) {
+                    const res = await fetch(src);
+                    if (res.ok) {
+                        const blob = await res.blob();
+                        const bUrl = URL.createObjectURL(blob);
+                        audioRef.current.src = bUrl;
+                        audioRef.current.load();
+                        setLoadError(null);
+                    }
+                }
                 await audioRef.current.play();
                 setIsPlaying(true);
                 if (runId) {
