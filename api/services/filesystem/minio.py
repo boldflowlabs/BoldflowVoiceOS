@@ -139,9 +139,16 @@ class MinioFileSystem(BaseFileSystem):
         try:
             if use_internal_endpoint:
                 protocol = "https" if self.secure else "http"
-                base = f"{protocol}://{self.endpoint}"
+                base = f"{protocol}://{self.endpoint}".rstrip("/")
             else:
-                base = self.public_endpoint
+                base = self.public_endpoint.rstrip("/")
+
+            if base.endswith(f"/{self.bucket_name}"):
+                return f"{base}/{clean_path}"
+
+            if clean_path.startswith(f"{self.bucket_name}/"):
+                return f"{base}/{clean_path}"
+
             return f"{base}/{self.bucket_name}/{clean_path}"
         except Exception as e:
             logger.error(f"Error generating MinIO URL: {e}")

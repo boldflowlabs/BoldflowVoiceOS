@@ -379,8 +379,8 @@ export function MediaPreviewDialog() {
                 transcriptUrl ? getSignedUrl(transcriptUrl, true) : null,
             ]);
 
-            const finalAudioUrl = audioResult || (recordingUrl ? `/voice-audio/${recordingUrl.replace(/^\/+/, '')}` : null);
-            const finalTranscriptUrl = transcriptResult || (transcriptUrl ? `/voice-audio/${transcriptUrl.replace(/^\/+/, '')}` : null);
+            const finalAudioUrl = normalizeMediaUrl(audioResult || (recordingUrl ? `/voice-audio/${recordingUrl.replace(/^\/+/, '')}` : null));
+            const finalTranscriptUrl = normalizeMediaUrl(transcriptResult || (transcriptUrl ? `/voice-audio/${transcriptUrl.replace(/^\/+/, '')}` : null));
 
             if (finalAudioUrl) {
                 setAudioSignedUrl(finalAudioUrl);

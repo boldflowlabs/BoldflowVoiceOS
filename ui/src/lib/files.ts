@@ -3,11 +3,20 @@ import { getSignedUrlApiV1S3SignedUrlGet } from "@/client/sdk.gen";
 export function normalizeMediaUrl(url: string | null): string | null {
     if (!url) return null;
     try {
-        if (url.startsWith("http://") || url.startsWith("https://")) {
-            const parsed = new URL(url);
-            if (parsed.pathname.startsWith("/voice-audio/")) {
-                return parsed.pathname + parsed.search;
+        const clean = url.trim();
+        if (clean.startsWith("http://") || clean.startsWith("https://")) {
+            const parsed = new URL(clean);
+            let pathname = parsed.pathname;
+            pathname = pathname.replace(/^(\/voice-audio)+/, "/voice-audio");
+            if (pathname.startsWith("/voice-audio/")) {
+                return pathname + parsed.search;
             }
+            return parsed.toString();
+        } else if (clean.startsWith("/")) {
+            return clean.replace(/^(\/voice-audio)+/, "/voice-audio");
+        } else {
+            const stripped = clean.replace(/^(voice-audio\/)+/, "");
+            return `/voice-audio/${stripped}`;
         }
     } catch {
         // Return original on parse failure
