@@ -441,14 +441,31 @@ def register_event_handlers(
 
         # Combined task: uploads artifacts, runs integrations (including QA),
         # then calculates cost (so QA token usage is captured in usage_info)
-        await enqueue_job(
-            FunctionNames.PROCESS_WORKFLOW_COMPLETION,
-            workflow_run_id,
-            audio_temp_path,
-            transcript_temp_path,
-            user_audio_temp_path,
-            bot_audio_temp_path,
-        )
+        try:
+            await enqueue_job(
+                FunctionNames.PROCESS_WORKFLOW_COMPLETION,
+                workflow_run_id,
+                audio_temp_path,
+                transcript_temp_path,
+                user_audio_temp_path,
+                bot_audio_temp_path,
+            )
+        except Exception as err:
+            logger.warning(
+                f"Failed to enqueue workflow completion to ARQ ({err}). Running locally as asyncio task."
+            )
+            from api.tasks.workflow_completion import process_workflow_completion
+
+            asyncio.create_task(
+                process_workflow_completion(
+                    None,
+                    workflow_run_id,
+                    audio_temp_path,
+                    transcript_temp_path,
+                    user_audio_temp_path,
+                    bot_audio_temp_path,
+                )
+            )
 
     # Return the buffer so it can be passed to other handlers
     return in_memory_audio_buffers
