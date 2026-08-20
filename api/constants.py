@@ -268,12 +268,17 @@ MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
 # Full URL (scheme + host) browsers use to reach object storage. Derives from
 # BACKEND_API_ENDPOINT / PUBLIC_BASE_URL; set explicitly only to point object
 # storage at a separate origin.
-MINIO_PUBLIC_ENDPOINT = (
-    os.getenv("MINIO_PUBLIC_ENDPOINT")
-    or BACKEND_API_ENDPOINT
-    or PUBLIC_BASE_URL
-    or "http://localhost:8000"
-)
+_minio_pub_env = os.getenv("MINIO_PUBLIC_ENDPOINT", "").strip()
+if BACKEND_API_ENDPOINT and (_minio_pub_env in ("", "http://localhost:9000", "http://127.0.0.1:9000")):
+    MINIO_PUBLIC_ENDPOINT = BACKEND_API_ENDPOINT
+elif _minio_pub_env:
+    MINIO_PUBLIC_ENDPOINT = _minio_pub_env
+else:
+    MINIO_PUBLIC_ENDPOINT = (
+        BACKEND_API_ENDPOINT
+        or PUBLIC_BASE_URL
+        or "http://localhost:8000"
+    )
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 MINIO_BUCKET = os.getenv("MINIO_BUCKET", "voice-audio")

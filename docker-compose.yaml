@@ -152,6 +152,7 @@ services:
     container_name: api
     volumes:
       - shared-tmp:/tmp
+      - storage-data:/app/storage
     environment:
       # Core application config
       ENVIRONMENT: "${ENVIRONMENT:-local}"
@@ -366,6 +367,8 @@ volumes:
   nginx-generated:
     driver: local
   coturn-generated:
+    driver: local
+  storage-data:
     driver: local
 
 networks:

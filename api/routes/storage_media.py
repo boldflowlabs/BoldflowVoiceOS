@@ -97,13 +97,18 @@ import urllib.parse
 async def _serve_minio_file(
     fs: MinioFileSystem, file_path: str, request: Request
 ) -> Response:
-    """Serve a file from MinIO with Range support."""
+    """Serve a file from MinIO with Range support, falling back to local disk if MinIO is offline."""
     clean_path = file_path.lstrip("/")
     try:
         stat = await asyncio.to_thread(
             fs.client.stat_object, fs.bucket_name, clean_path
         )
     except Exception as exc:
+        if hasattr(fs, "local_fallback") and fs.local_fallback:
+            try:
+                return await _serve_local_file(fs.local_fallback, clean_path, request)
+            except HTTPException:
+                pass
         logger.warning(f"File not found in MinIO bucket '{fs.bucket_name}': {clean_path} ({exc})")
         raise HTTPException(status_code=404, detail="File not found") from exc
 

@@ -7,7 +7,9 @@ from loguru import logger
 from minio import Minio
 from minio.error import S3Error
 
+import os
 from .base import BaseFileSystem
+from .local import LocalFileSystem
 
 
 class MinioFileSystem(BaseFileSystem):
@@ -49,6 +51,10 @@ class MinioFileSystem(BaseFileSystem):
         self.access_key = access_key
         self.secret_key = secret_key
 
+        # Local fallback filesystem so audio is NEVER lost even if MinIO container is offline
+        storage_dir = os.getenv("STORAGE_LOCAL_DIR") or os.path.join(os.getcwd(), "storage", bucket_name)
+        self.local_fallback = LocalFileSystem(storage_dir)
+
         # Client for internal operations (uploads, etc.)
         self.client = Minio(
             endpoint, access_key=access_key, secret_key=secret_key, secure=secure
@@ -59,13 +65,6 @@ class MinioFileSystem(BaseFileSystem):
             if not self.client.bucket_exists(self.bucket_name):
                 self.client.make_bucket(self.bucket_name)
 
-            # Set public read/write policy for local development
-            # This allows:
-            # 1. Anonymous downloads (s3:GetObject)
-            # 2. Anonymous uploads (s3:PutObject) - bypasses presigned URL signature issues
-            # 3. List bucket contents (s3:ListBucket) for debugging
-            # Note: This is set on every initialization to ensure policy is correct
-            # WARNING: Only use in local development, not production!
             policy = {
                 "Version": "2012-10-17",
                 "Statement": [
@@ -86,40 +85,48 @@ class MinioFileSystem(BaseFileSystem):
 
             self.client.set_bucket_policy(self.bucket_name, json.dumps(policy))
         except Exception as e:
-            # Bucket might already exist or we might be in a restricted environment
             logger.debug(f"Bucket setup note: {e}")
             pass
 
     async def acreate_file(self, file_path: str, content: BinaryIO) -> bool:
+        clean_path = file_path.lstrip("/")
+        fallback = getattr(self, "local_fallback", None)
+        saved_locally = False
         try:
             data = await content.read()
+            if fallback:
+                saved_locally = await fallback.acreate_file(clean_path, io.BytesIO(data))
 
             def _put():
-                # minio's put_object requires a file-like object with read();
-                # wrap the in-memory bytes in a stream (raw bytes raise
-                # "'bytes' object has no attribute 'read'").
                 self.client.put_object(
                     self.bucket_name,
-                    file_path,
+                    clean_path,
                     data=io.BytesIO(data),
                     length=len(data),
                 )
 
             await asyncio.to_thread(_put)
             return True
-        except S3Error:
-            return False
+        except Exception as exc:
+            logger.warning(f"MinIO put_object failed ({exc}), local fallback status: {saved_locally}")
+            return saved_locally
 
     async def aupload_file(self, local_path: str, destination_path: str) -> bool:
+        clean_path = destination_path.lstrip("/")
+        fallback = getattr(self, "local_fallback", None)
+        saved_locally = False
         try:
+            if fallback:
+                saved_locally = await fallback.aupload_file(local_path, clean_path)
 
             def _fput():
-                self.client.fput_object(self.bucket_name, destination_path, local_path)
+                self.client.fput_object(self.bucket_name, clean_path, local_path)
 
             await asyncio.to_thread(_fput)
             return True
-        except S3Error:
-            return False
+        except Exception as exc:
+            logger.warning(f"MinIO fput_object failed for {clean_path} ({exc}), local fallback status: {saved_locally}")
+            return saved_locally
 
     async def aget_signed_url(
         self,
@@ -128,13 +135,14 @@ class MinioFileSystem(BaseFileSystem):
         force_inline: bool = False,
         use_internal_endpoint: bool = False,
     ) -> Optional[str]:
+        clean_path = file_path.lstrip("/")
         try:
             if use_internal_endpoint:
                 protocol = "https" if self.secure else "http"
                 base = f"{protocol}://{self.endpoint}"
             else:
                 base = self.public_endpoint
-            return f"{base}/{self.bucket_name}/{file_path}"
+            return f"{base}/{self.bucket_name}/{clean_path}"
         except Exception as e:
             logger.error(f"Error generating MinIO URL: {e}")
             return None
