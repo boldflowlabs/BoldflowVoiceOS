@@ -20,6 +20,7 @@ import {
     Dialog,
     DialogClose,
     DialogContent,
+    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -361,6 +362,9 @@ export function MediaPreviewModal({
                         <Headphones className="h-5 w-5 text-primary" />
                         Run Preview {runId && `#${runId}`}
                     </DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground">
+                        Audio recording playback and call transcript.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="mt-2 space-y-4">
