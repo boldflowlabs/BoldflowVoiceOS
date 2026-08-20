@@ -92,7 +92,7 @@ export function MediaPreviewDialog() {
                         </div>
                     )}
 
-                    {!mediaLoading && audioSignedUrl && (
+                    {!mediaLoading && audioSignedUrl && !audioError && (
                         <div className="mt-4 space-y-1">
                             <audio
                                 src={audioSignedUrl}
@@ -108,23 +108,24 @@ export function MediaPreviewDialog() {
                                     source: 'media_preview_dialog',
                                 })}
                             />
-                            {audioError && (
-                                <p className="text-xs text-destructive">
-                                    Audio stream could not be loaded or is not available.
-                                </p>
-                            )}
+                        </div>
+                    )}
+
+                    {!mediaLoading && audioError && (
+                        <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
+                            Audio recording is not available for this run (audio was not captured or is missing from storage).
                         </div>
                     )}
 
                     {!mediaLoading && transcriptContent && (
-                        <pre className="w-full h-[60vh] overflow-auto border rounded-md mt-4 p-4 bg-muted text-sm whitespace-pre-wrap font-mono">
+                        <pre className="w-full h-[50vh] overflow-auto border rounded-md mt-4 p-4 bg-muted text-sm whitespace-pre-wrap font-mono">
                             {transcriptContent}
                         </pre>
                     )}
 
                     {!mediaLoading && !audioSignedUrl && !transcriptContent && (
                         <div className="flex items-center justify-center py-8 text-muted-foreground">
-                            No recording or transcript available.
+                            No recording or transcript available for this run.
                         </div>
                     )}
 
