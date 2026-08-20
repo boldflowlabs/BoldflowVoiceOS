@@ -266,10 +266,13 @@ ENABLE_AWS_S3 = os.getenv("ENABLE_AWS_S3", "false").lower() == "true"
 # MinIO Configuration
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
 # Full URL (scheme + host) browsers use to reach object storage. Derives from
-# PUBLIC_BASE_URL (remote nginx proxies /voice-audio/ to MinIO); set explicitly
-# only to point object storage at a separate origin.
+# BACKEND_API_ENDPOINT / PUBLIC_BASE_URL; set explicitly only to point object
+# storage at a separate origin.
 MINIO_PUBLIC_ENDPOINT = (
-    os.getenv("MINIO_PUBLIC_ENDPOINT") or PUBLIC_BASE_URL or "http://localhost:9000"
+    os.getenv("MINIO_PUBLIC_ENDPOINT")
+    or BACKEND_API_ENDPOINT
+    or PUBLIC_BASE_URL
+    or "http://localhost:8000"
 )
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")

@@ -24,6 +24,7 @@ export function MediaPreviewDialog() {
     const [recordingKey, setRecordingKey] = useState<string | null>(null);
     const [transcriptKey, setTranscriptKey] = useState<string | null>(null);
     const [mediaLoading, setMediaLoading] = useState(false);
+    const [audioError, setAudioError] = useState(false);
 
     const openPreview = useCallback(
         async (recordingUrl: string | null, transcriptUrl: string | null, runId: number) => {
@@ -31,6 +32,7 @@ export function MediaPreviewDialog() {
             setMediaLoading(true);
             setAudioSignedUrl(null);
             setTranscriptContent(null);
+            setAudioError(false);
             setRecordingKey(recordingUrl);
             setTranscriptKey(transcriptUrl);
             setSelectedRunId(runId);
@@ -91,19 +93,27 @@ export function MediaPreviewDialog() {
                     )}
 
                     {!mediaLoading && audioSignedUrl && (
-                        <audio
-                            src={audioSignedUrl}
-                            controls
-                            autoPlay
-                            className="w-full mt-4"
-                            onError={(e) => {
-                                console.error('Audio playback error:', e);
-                            }}
-                            onPlay={() => posthog.capture(PostHogEvent.RECORDING_PLAYED, {
-                                run_id: selectedRunId,
-                                source: 'media_preview_dialog',
-                            })}
-                        />
+                        <div className="mt-4 space-y-1">
+                            <audio
+                                src={audioSignedUrl}
+                                controls
+                                autoPlay
+                                className="w-full"
+                                onError={(e) => {
+                                    console.error('Audio playback error:', e);
+                                    setAudioError(true);
+                                }}
+                                onPlay={() => posthog.capture(PostHogEvent.RECORDING_PLAYED, {
+                                    run_id: selectedRunId,
+                                    source: 'media_preview_dialog',
+                                })}
+                            />
+                            {audioError && (
+                                <p className="text-xs text-destructive">
+                                    Audio stream could not be loaded or is not available.
+                                </p>
+                            )}
+                        </div>
                     )}
 
                     {!mediaLoading && transcriptContent && (
