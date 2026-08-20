@@ -206,12 +206,15 @@ function SplitTracksSection({
                 ]);
                 if (!isActive) return;
 
-                setSignedUrls({ user: userUrl, bot: botUrl });
-                if (!userUrl || !botUrl) return;
+                const finalUserUrl = userUrl || (userRecordingUrl ? `/voice-audio/${userRecordingUrl.replace(/^\/+/, "")}` : null);
+                const finalBotUrl = botUrl || (botRecordingUrl ? `/voice-audio/${botRecordingUrl.replace(/^\/+/, "")}` : null);
+
+                setSignedUrls({ user: finalUserUrl, bot: finalBotUrl });
+                if (!finalUserUrl || !finalBotUrl) return;
 
                 const [userPeaks, botPeaks] = await Promise.all([
-                    loadWaveformPeaks(userUrl),
-                    loadWaveformPeaks(botUrl),
+                    loadWaveformPeaks(finalUserUrl),
+                    loadWaveformPeaks(finalBotUrl),
                 ]);
 
                 if (isActive) {

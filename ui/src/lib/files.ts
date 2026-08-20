@@ -6,16 +6,7 @@ export function normalizeMediaUrl(url: string | null): string | null {
         if (url.startsWith("http://") || url.startsWith("https://")) {
             const parsed = new URL(url);
             if (parsed.pathname.startsWith("/voice-audio/")) {
-                if (typeof window !== "undefined") {
-                    const host = parsed.hostname;
-                    if (
-                        host === "localhost" ||
-                        host === "127.0.0.1" ||
-                        host === window.location.hostname
-                    ) {
-                        return parsed.pathname + parsed.search;
-                    }
-                }
+                return parsed.pathname + parsed.search;
             }
         }
     } catch {

@@ -43,13 +43,16 @@ export function MediaPreviewDialog() {
                 transcriptUrl ? getSignedUrl(transcriptUrl, true) : null,
             ]);
 
-            if (audioResult) {
-                setAudioSignedUrl(audioResult);
+            const finalAudioUrl = audioResult || (recordingUrl ? `/voice-audio/${recordingUrl.replace(/^\/+/, "")}` : null);
+            const finalTranscriptUrl = transcriptResult || (transcriptUrl ? `/voice-audio/${transcriptUrl.replace(/^\/+/, "")}` : null);
+
+            if (finalAudioUrl) {
+                setAudioSignedUrl(finalAudioUrl);
             }
 
-            if (transcriptResult) {
+            if (finalTranscriptUrl) {
                 try {
-                    const response = await fetch(transcriptResult);
+                    const response = await fetch(finalTranscriptUrl);
                     if (response.ok) {
                         const text = await response.text();
                         setTranscriptContent(text);
