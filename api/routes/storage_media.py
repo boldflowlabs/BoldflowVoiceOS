@@ -91,20 +91,24 @@ def _parse_range_header(range_header: str, file_size: int) -> tuple[int, int]:
     return start, end
 
 
+import urllib.parse
+
+
 async def _serve_minio_file(
     fs: MinioFileSystem, file_path: str, request: Request
 ) -> Response:
     """Serve a file from MinIO with Range support."""
+    clean_path = file_path.lstrip("/")
     try:
         stat = await asyncio.to_thread(
-            fs.client.stat_object, fs.bucket_name, file_path
+            fs.client.stat_object, fs.bucket_name, clean_path
         )
     except Exception as exc:
-        logger.warning(f"File not found in MinIO bucket '{fs.bucket_name}': {file_path} ({exc})")
+        logger.warning(f"File not found in MinIO bucket '{fs.bucket_name}': {clean_path} ({exc})")
         raise HTTPException(status_code=404, detail="File not found") from exc
 
     file_size = stat.size
-    content_type = _infer_content_type(file_path, stat.content_type)
+    content_type = _infer_content_type(clean_path, stat.content_type)
     range_header = request.headers.get("range")
 
     if range_header and range_header.startswith("bytes="):
@@ -115,58 +119,56 @@ async def _serve_minio_file(
             response_obj = await asyncio.to_thread(
                 fs.client.get_object,
                 fs.bucket_name,
-                file_path,
+                clean_path,
                 offset=start,
                 length=length,
             )
+            data = await asyncio.to_thread(response_obj.read)
         except Exception as exc:
-            logger.error(f"Error fetching range from MinIO for {file_path}: {exc}")
+            logger.error(f"Error fetching range from MinIO for {clean_path}: {exc}")
             raise HTTPException(status_code=500, detail="Failed to read file range") from exc
-
-        async def stream_range() -> AsyncGenerator[bytes, None]:
+        finally:
             try:
-                for chunk in response_obj.stream(32 * 1024):
-                    yield chunk
-            finally:
                 response_obj.close()
                 response_obj.release_conn()
+            except Exception:
+                pass
 
-        return StreamingResponse(
-            stream_range(),
+        return Response(
+            content=data,
             status_code=206,
             media_type=content_type,
             headers={
                 "Content-Range": f"bytes {start}-{end}/{file_size}",
                 "Accept-Ranges": "bytes",
-                "Content-Length": str(length),
+                "Content-Length": str(len(data)),
                 "Content-Disposition": "inline",
             },
         )
 
-    # Full file stream
+    # Full file read
     try:
         response_obj = await asyncio.to_thread(
-            fs.client.get_object, fs.bucket_name, file_path
+            fs.client.get_object, fs.bucket_name, clean_path
         )
+        data = await asyncio.to_thread(response_obj.read)
     except Exception as exc:
-        logger.error(f"Error fetching object from MinIO for {file_path}: {exc}")
+        logger.error(f"Error fetching object from MinIO for {clean_path}: {exc}")
         raise HTTPException(status_code=500, detail="Failed to read file") from exc
-
-    async def stream_full() -> AsyncGenerator[bytes, None]:
+    finally:
         try:
-            for chunk in response_obj.stream(32 * 1024):
-                yield chunk
-        finally:
             response_obj.close()
             response_obj.release_conn()
+        except Exception:
+            pass
 
-    return StreamingResponse(
-        stream_full(),
+    return Response(
+        content=data,
         status_code=200,
         media_type=content_type,
         headers={
             "Accept-Ranges": "bytes",
-            "Content-Length": str(file_size),
+            "Content-Length": str(len(data)),
             "Content-Disposition": "inline",
         },
     )
@@ -176,12 +178,13 @@ async def _serve_local_file(
     fs: LocalFileSystem, file_path: str, request: Request
 ) -> Response:
     """Serve a file from local filesystem."""
-    full_path = fs._get_full_path(file_path)
+    clean_path = file_path.lstrip("/")
+    full_path = fs._get_full_path(clean_path)
     if not os.path.exists(full_path):
         logger.warning(f"File not found on local disk: {full_path}")
         raise HTTPException(status_code=404, detail="File not found")
 
-    content_type = _infer_content_type(file_path)
+    content_type = _infer_content_type(clean_path)
     return FileResponse(
         full_path,
         media_type=content_type,
@@ -193,7 +196,8 @@ async def _serve_s3_file(
     fs: S3FileSystem, file_path: str, request: Request
 ) -> Response:
     """Serve or redirect an S3 object."""
-    signed_url = await fs.aget_signed_url(file_path=file_path, expiration=3600, force_inline=True)
+    clean_path = file_path.lstrip("/")
+    signed_url = await fs.aget_signed_url(file_path=clean_path, expiration=3600, force_inline=True)
     if not signed_url:
         raise HTTPException(status_code=404, detail="File not found")
     from fastapi.responses import RedirectResponse
@@ -202,8 +206,9 @@ async def _serve_s3_file(
 
 async def serve_media_file(file_path: str, request: Request) -> Response:
     """Route file request to active storage backend."""
+    decoded_path = urllib.parse.unquote(file_path)
     # Prevent directory traversal
-    normalized = os.path.normpath(file_path).replace("\\", "/")
+    normalized = os.path.normpath(decoded_path).replace("\\", "/").lstrip("/")
     if normalized.startswith("../") or "/../" in normalized:
         raise HTTPException(status_code=400, detail="Invalid file path")
 

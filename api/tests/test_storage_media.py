@@ -80,6 +80,8 @@ def test_serve_minio_storage_file_and_range():
     class MockMinioResponse:
         def __init__(self, data: bytes):
             self.data = data
+        def read(self, amt=None):
+            return self.data
         def stream(self, chunk_size=32768):
             yield self.data
         def close(self):

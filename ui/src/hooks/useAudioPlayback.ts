@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { getSignedUrlApiV1S3SignedUrlGet } from "@/client/sdk.gen";
+import { normalizeMediaUrl } from "@/lib/files";
 
 /**
  * Hook for playing audio files stored in S3/MinIO via signed URLs.
@@ -41,7 +42,8 @@ export function useAudioPlayback() {
                 throw new Error("Failed to get audio URL");
             }
 
-            const audio = new Audio(result.data.url);
+            const resolvedUrl = normalizeMediaUrl(result.data.url as string) || (result.data.url as string);
+            const audio = new Audio(resolvedUrl);
             audio.onended = () => {
                 audioRef.current = null;
                 setPlayingId(null);
