@@ -366,29 +366,26 @@ export function MediaPreviewDialog() {
     const openPreview = useCallback(
         async (recordingUrl: string | null, transcriptUrl: string | null, runId: number) => {
             if (!recordingUrl && !transcriptUrl) return;
-            setMediaLoading(true);
-            setAudioSignedUrl(null);
+
+            const immediateAudioUrl = recordingUrl
+                ? normalizeMediaUrl(`/voice-audio/${recordingUrl.replace(/^\/+/, '')}`)
+                : null;
+            const immediateTranscriptUrl = transcriptUrl
+                ? normalizeMediaUrl(`/voice-audio/${transcriptUrl.replace(/^\/+/, '')}`)
+                : null;
+
+            setAudioSignedUrl(immediateAudioUrl);
             setTranscriptContent(null);
             setRecordingKey(recordingUrl);
             setTranscriptKey(transcriptUrl);
             setSelectedRunId(runId);
+            setMediaLoading(false);
             setIsOpen(true);
 
-            const [audioResult, transcriptResult] = await Promise.all([
-                recordingUrl ? getSignedUrl(recordingUrl) : null,
-                transcriptUrl ? getSignedUrl(transcriptUrl, true) : null,
-            ]);
-
-            const finalAudioUrl = normalizeMediaUrl(audioResult || (recordingUrl ? `/voice-audio/${recordingUrl.replace(/^\/+/, '')}` : null));
-            const finalTranscriptUrl = normalizeMediaUrl(transcriptResult || (transcriptUrl ? `/voice-audio/${transcriptUrl.replace(/^\/+/, '')}` : null));
-
-            if (finalAudioUrl) {
-                setAudioSignedUrl(finalAudioUrl);
-            }
-
-            if (finalTranscriptUrl) {
+            // Fetch transcript in background without blocking player
+            if (immediateTranscriptUrl) {
                 try {
-                    const response = await fetch(finalTranscriptUrl);
+                    const response = await fetch(immediateTranscriptUrl);
                     if (response.ok) {
                         const text = await response.text();
                         setTranscriptContent(text);
@@ -397,17 +394,23 @@ export function MediaPreviewDialog() {
                             source: 'media_preview_dialog',
                             transcript_length: text.length,
                         });
-                    } else {
-                        console.error('Error fetching transcript: HTTP', response.status);
-                        setTranscriptContent(null);
                     }
                 } catch (error) {
-                    console.error('Error fetching transcript:', error);
-                    setTranscriptContent(null);
+                    console.warn('Transcript background fetch note:', error);
                 }
             }
 
-            setMediaLoading(false);
+            // Optionally refresh signed URLs in background if S3 provider is used
+            try {
+                const [audioResult] = await Promise.all([
+                    recordingUrl ? getSignedUrl(recordingUrl) : null,
+                ]);
+                if (audioResult) {
+                    setAudioSignedUrl(normalizeMediaUrl(audioResult));
+                }
+            } catch {
+                // Keep immediate URL on any background error
+            }
         },
         [],
     );
