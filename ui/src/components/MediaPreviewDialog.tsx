@@ -24,7 +24,6 @@ export function MediaPreviewDialog() {
     const [recordingKey, setRecordingKey] = useState<string | null>(null);
     const [transcriptKey, setTranscriptKey] = useState<string | null>(null);
     const [mediaLoading, setMediaLoading] = useState(false);
-    const [audioError, setAudioError] = useState(false);
 
     const openPreview = useCallback(
         async (recordingUrl: string | null, transcriptUrl: string | null, runId: number) => {
@@ -32,7 +31,6 @@ export function MediaPreviewDialog() {
             setMediaLoading(true);
             setAudioSignedUrl(null);
             setTranscriptContent(null);
-            setAudioError(false);
             setRecordingKey(recordingUrl);
             setTranscriptKey(transcriptUrl);
             setSelectedRunId(runId);
@@ -95,28 +93,22 @@ export function MediaPreviewDialog() {
                         </div>
                     )}
 
-                    {!mediaLoading && audioSignedUrl && !audioError && (
-                        <div className="mt-4 space-y-1">
+                    {!mediaLoading && audioSignedUrl && (
+                        <div className="mt-4 space-y-2">
                             <audio
+                                key={audioSignedUrl}
                                 src={audioSignedUrl}
                                 controls
-                                autoPlay
-                                className="w-full"
-                                onError={(e) => {
-                                    console.error('Audio playback error:', e);
-                                    setAudioError(true);
-                                }}
+                                preload="metadata"
+                                className="w-full rounded-md"
                                 onPlay={() => posthog.capture(PostHogEvent.RECORDING_PLAYED, {
                                     run_id: selectedRunId,
                                     source: 'media_preview_dialog',
                                 })}
+                                onError={(e) => {
+                                    console.warn('Audio playback note:', e);
+                                }}
                             />
-                        </div>
-                    )}
-
-                    {!mediaLoading && audioError && (
-                        <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
-                            Audio recording is not available for this run (audio was not captured or is missing from storage).
                         </div>
                     )}
 
