@@ -18,7 +18,15 @@ class LocalFileSystem(BaseFileSystem):
             base_path: Base directory path for file operations
         """
         self.base_path = base_path
-        os.makedirs(base_path, exist_ok=True)
+        try:
+            os.makedirs(base_path, exist_ok=True)
+        except Exception:
+            import tempfile
+            self.base_path = os.path.join(tempfile.gettempdir(), "dograh_storage")
+            try:
+                os.makedirs(self.base_path, exist_ok=True)
+            except Exception:
+                pass
 
     def _get_full_path(self, file_path: str) -> str:
         """Get the full path by joining with base path."""

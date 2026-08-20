@@ -156,6 +156,9 @@ ENV PYTHONPATH=/app
 # Disable file logging in Docker - logs go to stdout for docker logs
 ENV LOG_TO_FILE=false
 
+RUN mkdir -p /app/storage \
+ && chown -R dograh:dograh /app/storage
+
 USER dograh
 
 # Expose the port FastAPI will run on
