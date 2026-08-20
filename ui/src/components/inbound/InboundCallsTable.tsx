@@ -135,7 +135,7 @@ export function InboundCallsTable() {
                                             <TableCell className="text-right tabular-nums">
                                                 {formatDuration(run.call_duration_seconds)}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell onClick={(e) => e.stopPropagation()}>
                                                 <MediaPreviewButton
                                                     recordingUrl={run.recording_url}
                                                     transcriptUrl={run.transcript_url}

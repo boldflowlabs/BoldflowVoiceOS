@@ -507,13 +507,16 @@ export function MediaPreviewButton({
 }: MediaPreviewButtonProps) {
     if (!recordingUrl && !transcriptUrl) return null;
 
-    const handleOpen = () => {
+    const handleOpen = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
         onSelect?.(runId);
         onOpenPreview(recordingUrl ?? null, transcriptUrl ?? null, runId);
     };
 
     return (
         <Button
+            type="button"
             variant="outline"
             size="icon"
             onClick={handleOpen}
