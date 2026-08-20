@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { getUsageHistoryApiV1OrganizationsUsageRunsGet } from '@/client/sdk.gen';
 import type { UsageHistoryResponse, WorkflowRunUsageResponse } from '@/client/types.gen';
-import { MediaPreviewButton, MediaPreviewDialog } from '@/components/MediaPreviewDialog';
+import { MediaPreviewButton, MediaPreviewModal } from '@/components/MediaPreviewDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,8 +53,11 @@ export function InboundCallsTable() {
     const [history, setHistory] = useState<UsageHistoryResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
-
-    const mediaPreview = MediaPreviewDialog();
+    const [previewRun, setPreviewRun] = useState<{
+        id: number;
+        recordingUrl: string | null;
+        transcriptUrl: string | null;
+    } | null>(null);
 
     const fetchPage = useCallback(async (targetPage: number) => {
         if (!auth.isAuthenticated) return;
@@ -140,7 +143,9 @@ export function InboundCallsTable() {
                                                     recordingUrl={run.recording_url}
                                                     transcriptUrl={run.transcript_url}
                                                     runId={run.id}
-                                                    onOpenPreview={mediaPreview.openPreview}
+                                                    onOpenPreview={(rec, tr, id) =>
+                                                        setPreviewRun({ id, recordingUrl: rec, transcriptUrl: tr })
+                                                    }
                                                 />
                                             </TableCell>
                                         </TableRow>
@@ -185,7 +190,15 @@ export function InboundCallsTable() {
                         </p>
                     </div>
                 )}
-                {mediaPreview.dialog}
+                <MediaPreviewModal
+                    isOpen={!!previewRun}
+                    onOpenChange={(open) => {
+                        if (!open) setPreviewRun(null);
+                    }}
+                    runId={previewRun?.id ?? null}
+                    recordingUrl={previewRun?.recordingUrl ?? null}
+                    transcriptUrl={previewRun?.transcriptUrl ?? null}
+                />
             </CardContent>
         </Card>
     );

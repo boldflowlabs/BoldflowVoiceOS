@@ -5,7 +5,6 @@ import {
     FastForward,
     FileText,
     Headphones,
-    Loader2,
     Pause,
     Play,
     RotateCcw,
@@ -13,7 +12,7 @@ import {
     VolumeX,
 } from 'lucide-react';
 import posthog from 'posthog-js';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,7 +25,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { PostHogEvent } from '@/constants/posthog-events';
-import { downloadFile, getSignedUrl } from '@/lib/files';
+import { downloadFile, normalizeMediaUrl } from '@/lib/files';
 
 function formatTime(seconds: number): string {
     if (isNaN(seconds) || !isFinite(seconds) || seconds < 0) return '0:00';
@@ -306,63 +305,130 @@ function CustomAudioPlayer({
     );
 }
 
-export function MediaPreviewDialog() {
-    const [isOpen, setIsOpen] = useState(false);
-    const [audioSignedUrl, setAudioSignedUrl] = useState<string | null>(null);
+export function MediaPreviewModal({
+    isOpen,
+    onOpenChange,
+    runId,
+    recordingUrl,
+    transcriptUrl,
+}: {
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    runId: number | null;
+    recordingUrl: string | null;
+    transcriptUrl: string | null;
+}) {
     const [transcriptContent, setTranscriptContent] = useState<string | null>(null);
-    const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
-    const [recordingKey, setRecordingKey] = useState<string | null>(null);
-    const [transcriptKey, setTranscriptKey] = useState<string | null>(null);
-    const [mediaLoading, setMediaLoading] = useState(false);
 
-    const openPreview = useCallback(
-        async (recordingUrl: string | null, transcriptUrl: string | null, runId: number) => {
-            if (!recordingUrl && !transcriptUrl) return;
+    const audioUrl = recordingUrl ? normalizeMediaUrl(recordingUrl) : null;
+    const directTranscriptUrl = transcriptUrl ? normalizeMediaUrl(transcriptUrl) : null;
 
-            const immediateAudioUrl = recordingUrl
-                ? normalizeMediaUrl(`/voice-audio/${recordingUrl.replace(/^\/+/, '')}`)
-                : null;
-            const immediateTranscriptUrl = transcriptUrl
-                ? normalizeMediaUrl(`/voice-audio/${transcriptUrl.replace(/^\/+/, '')}`)
-                : null;
-
-            setAudioSignedUrl(immediateAudioUrl);
+    useEffect(() => {
+        if (!isOpen || !directTranscriptUrl) {
             setTranscriptContent(null);
-            setRecordingKey(recordingUrl);
-            setTranscriptKey(transcriptUrl);
-            setSelectedRunId(runId);
-            setMediaLoading(false);
-            setIsOpen(true);
+            return;
+        }
 
-            // Fetch transcript in background without blocking player
-            if (immediateTranscriptUrl) {
-                try {
-                    const response = await fetch(immediateTranscriptUrl);
-                    if (response.ok) {
-                        const text = await response.text();
-                        setTranscriptContent(text);
+        let isMounted = true;
+        fetch(directTranscriptUrl)
+            .then(async (res) => {
+                if (res.ok && isMounted) {
+                    const text = await res.text();
+                    setTranscriptContent(text);
+                    if (runId) {
                         posthog.capture(PostHogEvent.TRANSCRIPT_VIEWED, {
                             run_id: runId,
                             source: 'media_preview_dialog',
                             transcript_length: text.length,
                         });
                     }
-                } catch (error) {
-                    console.warn('Transcript background fetch note:', error);
                 }
-            }
+            })
+            .catch((err) => {
+                console.warn('Transcript load note:', err);
+            });
 
-            // Optionally refresh signed URLs in background if S3 provider is used
-            try {
-                const [audioResult] = await Promise.all([
-                    recordingUrl ? getSignedUrl(recordingUrl) : null,
-                ]);
-                if (audioResult) {
-                    setAudioSignedUrl(normalizeMediaUrl(audioResult));
-                }
-            } catch {
-                // Keep immediate URL on any background error
-            }
+        return () => {
+            isMounted = false;
+        };
+    }, [isOpen, directTranscriptUrl, runId]);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Headphones className="h-5 w-5 text-primary" />
+                        Run Preview {runId && `#${runId}`}
+                    </DialogTitle>
+                </DialogHeader>
+
+                <div className="mt-2 space-y-4">
+                    {/* Audio Player Section */}
+                    {audioUrl ? (
+                        <CustomAudioPlayer
+                            src={audioUrl}
+                            runId={runId}
+                            onDownload={recordingUrl ? () => downloadFile(recordingUrl) : undefined}
+                        />
+                    ) : (
+                        <div className="rounded-lg border border-border p-4 text-center text-xs text-muted-foreground">
+                            No audio recording available for this run.
+                        </div>
+                    )}
+
+                    {/* Transcript Section */}
+                    {transcriptContent ? (
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                                <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    <FileText className="h-3.5 w-3.5" /> Call Transcript
+                                </span>
+                                {transcriptUrl && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-2 text-xs text-muted-foreground"
+                                        onClick={() => downloadFile(transcriptUrl)}
+                                    >
+                                        <Download className="h-3 w-3 mr-1" /> Download
+                                    </Button>
+                                )}
+                            </div>
+                            <pre className="w-full max-h-[45vh] overflow-auto rounded-lg border border-border/60 bg-muted/40 p-4 text-xs font-mono leading-relaxed whitespace-pre-wrap">
+                                {transcriptContent}
+                            </pre>
+                        </div>
+                    ) : transcriptUrl ? (
+                        <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                            Transcript is being processed or was empty for this call.
+                        </div>
+                    ) : null}
+                </div>
+
+                <DialogFooter className="pt-3 border-t border-border/40">
+                    <DialogClose asChild>
+                        <Button variant="secondary">Close</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export function MediaPreviewDialog() {
+    const [isOpen, setIsOpen] = useState(false);
+    const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
+    const [recordingKey, setRecordingKey] = useState<string | null>(null);
+    const [transcriptKey, setTranscriptKey] = useState<string | null>(null);
+
+    const openPreview = useCallback(
+        (recordingUrl: string | null, transcriptUrl: string | null, runId: number) => {
+            if (!recordingUrl && !transcriptUrl) return;
+            setRecordingKey(recordingUrl);
+            setTranscriptKey(transcriptUrl);
+            setSelectedRunId(runId);
+            setIsOpen(true);
         },
         [],
     );
@@ -370,74 +436,13 @@ export function MediaPreviewDialog() {
     return {
         openPreview,
         dialog: (
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Headphones className="h-5 w-5 text-primary" />
-                            Run Preview {selectedRunId && `#${selectedRunId}`}
-                        </DialogTitle>
-                    </DialogHeader>
-
-                    {mediaLoading && (
-                        <div className="flex items-center justify-center py-12 space-x-2 text-muted-foreground">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                            <span className="text-sm">Loading media...</span>
-                        </div>
-                    )}
-
-                    {!mediaLoading && (
-                        <div className="mt-2 space-y-4">
-                            {/* Audio Player Section */}
-                            {audioSignedUrl ? (
-                                <CustomAudioPlayer
-                                    src={audioSignedUrl}
-                                    runId={selectedRunId}
-                                    onDownload={recordingKey ? () => downloadFile(recordingKey) : undefined}
-                                />
-                            ) : (
-                                <div className="rounded-lg border border-border p-4 text-center text-xs text-muted-foreground">
-                                    No audio recording available for this run.
-                                </div>
-                            )}
-
-                            {/* Transcript Section */}
-                            {transcriptContent ? (
-                                <div className="space-y-1.5">
-                                    <div className="flex items-center justify-between">
-                                        <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                            <FileText className="h-3.5 w-3.5" /> Call Transcript
-                                        </span>
-                                        {transcriptKey && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 px-2 text-xs text-muted-foreground"
-                                                onClick={() => downloadFile(transcriptKey)}
-                                            >
-                                                <Download className="h-3 w-3 mr-1" /> Download
-                                            </Button>
-                                        )}
-                                    </div>
-                                    <pre className="w-full max-h-[45vh] overflow-auto rounded-lg border border-border/60 bg-muted/40 p-4 text-xs font-mono leading-relaxed whitespace-pre-wrap">
-                                        {transcriptContent}
-                                    </pre>
-                                </div>
-                            ) : transcriptKey ? (
-                                <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-                                    Transcript is being processed or was empty for this call.
-                                </div>
-                            ) : null}
-                        </div>
-                    )}
-
-                    <DialogFooter className="pt-3 border-t border-border/40">
-                        <DialogClose asChild>
-                            <Button variant="secondary">Close</Button>
-                        </DialogClose>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <MediaPreviewModal
+                isOpen={isOpen}
+                onOpenChange={setIsOpen}
+                runId={selectedRunId}
+                recordingUrl={recordingKey}
+                transcriptUrl={transcriptKey}
+            />
         ),
     };
 }
