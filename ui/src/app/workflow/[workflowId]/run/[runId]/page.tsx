@@ -106,21 +106,27 @@ function buildWaveformPeaks(audioBuffer: AudioBuffer) {
 }
 
 async function loadWaveformPeaks(url: string) {
-    const response = await fetch(url);
-    const audioData = await response.arrayBuffer();
-    const AudioContextConstructor =
-        window.AudioContext ||
-        (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-            .webkitAudioContext;
-
-    if (!AudioContextConstructor) return null;
-
-    const audioContext = new AudioContextConstructor();
     try {
-        const decoded = await audioContext.decodeAudioData(audioData);
-        return buildWaveformPeaks(decoded);
-    } finally {
-        void audioContext.close();
+        const response = await fetch(url);
+        if (!response.ok) return null;
+        const audioData = await response.arrayBuffer();
+        const AudioContextConstructor =
+            window.AudioContext ||
+            (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+                .webkitAudioContext;
+
+        if (!AudioContextConstructor) return null;
+
+        const audioContext = new AudioContextConstructor();
+        try {
+            const decoded = await audioContext.decodeAudioData(audioData);
+            return buildWaveformPeaks(decoded);
+        } finally {
+            void audioContext.close();
+        }
+    } catch (error) {
+        console.error('Error in loadWaveformPeaks:', error);
+        return null;
     }
 }
 

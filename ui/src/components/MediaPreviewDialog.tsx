@@ -48,15 +48,21 @@ export function MediaPreviewDialog() {
             if (transcriptResult) {
                 try {
                     const response = await fetch(transcriptResult);
-                    const text = await response.text();
-                    setTranscriptContent(text);
-                    posthog.capture(PostHogEvent.TRANSCRIPT_VIEWED, {
-                        run_id: runId,
-                        source: 'media_preview_dialog',
-                        transcript_length: text.length,
-                    });
+                    if (response.ok) {
+                        const text = await response.text();
+                        setTranscriptContent(text);
+                        posthog.capture(PostHogEvent.TRANSCRIPT_VIEWED, {
+                            run_id: runId,
+                            source: 'media_preview_dialog',
+                            transcript_length: text.length,
+                        });
+                    } else {
+                        console.error('Error fetching transcript: HTTP', response.status);
+                        setTranscriptContent(null);
+                    }
                 } catch (error) {
                     console.error('Error fetching transcript:', error);
+                    setTranscriptContent(null);
                 }
             }
 
@@ -90,6 +96,9 @@ export function MediaPreviewDialog() {
                             controls
                             autoPlay
                             className="w-full mt-4"
+                            onError={(e) => {
+                                console.error('Audio playback error:', e);
+                            }}
                             onPlay={() => posthog.capture(PostHogEvent.RECORDING_PLAYED, {
                                 run_id: selectedRunId,
                                 source: 'media_preview_dialog',

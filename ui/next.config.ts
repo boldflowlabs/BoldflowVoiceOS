@@ -54,7 +54,16 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
+    const backendUrl =
+      process.env.BACKEND_URL ||
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      "http://127.0.0.1:8000";
+
     return [
+      {
+        source: "/voice-audio/:path*",
+        destination: `${backendUrl}/voice-audio/:path*`,
+      },
       {
         source: "/ingest/static/:path*",
         destination: "https://us-assets.i.posthog.com/static/:path*",

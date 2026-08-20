@@ -28,3 +28,10 @@ def test_known_org_scoped_keys_extract_org_id():
 
 def test_unknown_numeric_prefix_is_not_treated_as_org_scoped():
     assert _extract_org_id_from_key("unknown/42/file.wav") is None
+
+
+def test_org_scoped_workflow_recording_keys():
+    assert _extract_org_id_from_key("recordings/42/abc12345/greeting.mp3") == 42
+    assert _extract_org_id_from_key("recordings/42/rec_def/audio.wav") == 42
+    assert _extract_legacy_workflow_run_id("recordings/42/abc12345/greeting.mp3") is None
+

@@ -25,6 +25,7 @@ from api.routes.reports import router as reports_router
 from api.routes.s3_signed_url import router as s3_router
 from api.routes.service_keys import router as service_keys_router
 from api.routes.superuser import router as superuser_router
+from api.routes.storage_media import router as storage_media_router
 from api.routes.telephony import router as telephony_router
 from api.routes.telephony_marketplace import router as telephony_marketplace_router
 from api.routes.tool import router as tool_router
@@ -53,6 +54,7 @@ router.include_router(billing_router)
 router.include_router(credentials_router)
 router.include_router(tool_router)
 router.include_router(organization_router)
+router.include_router(storage_media_router)
 router.include_router(s3_router)
 router.include_router(service_keys_router)
 router.include_router(organization_usage_router)

@@ -1,6 +1,7 @@
 import re
 import uuid
-from typing import Annotated, Any, Dict, Optional, TypedDict
+from typing import Annotated, Any, Dict, Optional
+from typing_extensions import TypedDict
 
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -47,13 +48,20 @@ def _extract_org_id_from_key(key: str) -> Optional[int]:
     """Try to extract an organization ID from a storage key.
 
     Matches known org-scoped keys of the form ``{prefix}/{org_id}/...`` where
-    *org_id* is a positive integer. Returns ``None`` when the pattern does not
-    match.
+    *org_id* is a positive integer. Also matches org-scoped workflow recordings
+    of the form ``recordings/{org_id}/{recording_id}/{filename}``. Returns
+    ``None`` when the pattern does not match.
     """
     parts = key.split("/")
     if (
         len(parts) >= 3
         and parts[0] in ORG_SCOPED_STORAGE_PREFIXES
+        and parts[1].isdigit()
+    ):
+        return int(parts[1])
+    if (
+        len(parts) >= 4
+        and parts[0] == "recordings"
         and parts[1].isdigit()
     ):
         return int(parts[1])
@@ -105,6 +113,9 @@ async def _validate_and_extract_workflow_run_id(
     elif key.startswith("recordings/"):
         run_id = _extract_legacy_workflow_run_id(key)
         if run_id is None:
+            org_id = _extract_org_id_from_key(key)
+            if org_id is not None:
+                return None
             raise HTTPException(
                 status_code=400, detail="Invalid workflow_run_id in key"
             )

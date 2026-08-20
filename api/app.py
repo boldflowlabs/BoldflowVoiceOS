@@ -36,6 +36,7 @@ from loguru import logger
 from api.constants import REDIS_URL
 from api.mcp_server import mcp
 from api.routes.main import router as main_router
+from api.routes.storage_media import router as storage_media_router
 from api.services.pipecat.tracing_config import (
     handle_langfuse_sync,
     load_all_org_langfuse_credentials,
@@ -136,6 +137,9 @@ api_router.include_router(main_router)
 
 # main router with api prefix
 app.include_router(api_router, prefix=API_PREFIX)
+
+# Include storage media router at root so /voice-audio/... URLs resolve directly
+app.include_router(storage_media_router)
 
 # Mount the MCP server — agents reach it at /api/v1/mcp over Streamable HTTP,
 # authenticating with the same X-API-Key header used by the REST API.

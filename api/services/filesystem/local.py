@@ -59,37 +59,74 @@ class LocalFileSystem(BaseFileSystem):
             return False
 
     async def aget_signed_url(
-        self, file_path: str, expiration: int = 3600
+        self,
+        file_path: str,
+        expiration: int = 3600,
+        force_inline: bool = False,
+        use_internal_endpoint: bool = False,
     ) -> Optional[str]:
-        # For local filesystem, we'll create a temporary symlink with expiration
+        # Return URL pointing to /voice-audio endpoint
         try:
             full_path = self._get_full_path(file_path)
             if not os.path.exists(full_path):
                 return None
-
-            # Create a temporary directory for symlinks
-            temp_dir = os.path.join(self.base_path, ".temp_links")
-            os.makedirs(temp_dir, exist_ok=True)
-
-            # Generate a unique temporary filename
-            temp_filename = (
-                f"{datetime.now().timestamp()}_{os.path.basename(file_path)}"
-            )
-            temp_path = os.path.join(temp_dir, temp_filename)
-
-            # Create symlink
-            os.symlink(full_path, temp_path)
-
-            # Schedule deletion after expiration
-            async def delete_after_expiration():
-                await asyncio.sleep(expiration)
-                try:
-                    os.remove(temp_path)
-                except Exception:
-                    pass
-
-            asyncio.create_task(delete_after_expiration())
-
-            return f"/files/{temp_filename}"
+            return f"/voice-audio/{file_path}"
         except Exception:
             return None
+
+    async def aget_file_metadata(self, file_path: str) -> Optional[dict]:
+        try:
+            full_path = self._get_full_path(file_path)
+            if not os.path.exists(full_path):
+                return None
+            stat = os.stat(full_path)
+            return {
+                "size": stat.st_size,
+                "created_at": datetime.fromtimestamp(stat.st_ctime),
+                "modified_at": datetime.fromtimestamp(stat.st_mtime),
+                "etag": None,
+                "content_type": None,
+                "storage_class": None,
+            }
+        except Exception:
+            return None
+
+    async def aget_presigned_put_url(
+        self,
+        file_path: str,
+        expiration: int = 900,
+        content_type: str = "text/csv",
+        max_size: int = 10_485_760,
+    ) -> Optional[str]:
+        return f"/voice-audio/{file_path}"
+
+    async def adownload_file(self, source_path: str, local_path: str) -> bool:
+        try:
+            full_source = self._get_full_path(source_path)
+            if not os.path.exists(full_source):
+                return False
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            async with (
+                aiofiles.open(full_source, "rb") as src,
+                aiofiles.open(local_path, "wb") as dst,
+            ):
+                await dst.write(await src.read())
+            return True
+        except Exception:
+            return False
+
+    async def acopy_file(self, source_path: str, destination_path: str) -> bool:
+        try:
+            full_source = self._get_full_path(source_path)
+            full_dest = self._get_full_path(destination_path)
+            if not os.path.exists(full_source):
+                return False
+            os.makedirs(os.path.dirname(full_dest), exist_ok=True)
+            async with (
+                aiofiles.open(full_source, "rb") as src,
+                aiofiles.open(full_dest, "wb") as dst,
+            ):
+                await dst.write(await src.read())
+            return True
+        except Exception:
+            return False
