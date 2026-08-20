@@ -13,7 +13,7 @@ import {
     VolumeX,
 } from 'lucide-react';
 import posthog from 'posthog-js';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ import { PostHogEvent } from '@/constants/posthog-events';
 import { downloadFile, getSignedUrl } from '@/lib/files';
 
 function formatTime(seconds: number): string {
-    if (isNaN(seconds) || seconds < 0) return '0:00';
+    if (isNaN(seconds) || !isFinite(seconds) || seconds < 0) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
@@ -55,105 +55,15 @@ function CustomAudioPlayer({
     const [volume, setVolume] = useState(1);
     const [loadError, setLoadError] = useState<string | null>(null);
 
-    useEffect(() => {
-        let isMounted = true;
-        let blobUrl: string | null = null;
-
-        const audio = new Audio();
-        audioRef.current = audio;
-        audio.preload = 'auto';
-
-        const handleTimeUpdate = () => {
-            if (isMounted) setCurrentTime(audio.currentTime);
-        };
-
-        const handleLoadedMetadata = () => {
-            if (isMounted) {
-                if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
-                    setDuration(audio.duration);
-                }
-                setLoadError(null);
-            }
-        };
-
-        const handleDurationChange = () => {
-            if (isMounted && audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
-                setDuration(audio.duration);
-            }
-        };
-
-        const handleEnded = () => {
-            if (isMounted) {
-                setIsPlaying(false);
-                setCurrentTime(0);
-            }
-        };
-
-        const handleError = async () => {
-            // If direct src failed, try fetching as a blob (bypasses browser media streaming quirks)
-            try {
-                const res = await fetch(src);
-                if (res.ok) {
-                    const blob = await res.blob();
-                    if (isMounted) {
-                        blobUrl = URL.createObjectURL(blob);
-                        audio.src = blobUrl;
-                        audio.load();
-                        setLoadError(null);
-                        return;
-                    }
-                }
-            } catch {
-                // Ignore fallback fetch error
-            }
-
-            if (isMounted) {
-                setLoadError('Failed to load audio stream');
-            }
-        };
-
-        audio.addEventListener('timeupdate', handleTimeUpdate);
-        audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-        audio.addEventListener('durationchange', handleDurationChange);
-        audio.addEventListener('ended', handleEnded);
-        audio.addEventListener('error', handleError);
-
-        // Set source
-        audio.src = src;
-        audio.load();
-
-        return () => {
-            isMounted = false;
-            audio.pause();
-            audio.removeEventListener('timeupdate', handleTimeUpdate);
-            audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-            audio.removeEventListener('durationchange', handleDurationChange);
-            audio.removeEventListener('ended', handleEnded);
-            audio.removeEventListener('error', handleError);
-            if (blobUrl) URL.revokeObjectURL(blobUrl);
-            audioRef.current = null;
-        };
-    }, [src]);
-
     const togglePlay = async () => {
-        if (!audioRef.current) return;
+        const audio = audioRef.current;
+        if (!audio) return;
         try {
             if (isPlaying) {
-                audioRef.current.pause();
+                audio.pause();
                 setIsPlaying(false);
             } else {
-                // If there was a load error or audio has no source yet, try to load and play
-                if (audioRef.current.error || !audioRef.current.src) {
-                    const res = await fetch(src);
-                    if (res.ok) {
-                        const blob = await res.blob();
-                        const bUrl = URL.createObjectURL(blob);
-                        audioRef.current.src = bUrl;
-                        audioRef.current.load();
-                        setLoadError(null);
-                    }
-                }
-                await audioRef.current.play();
+                await audio.play();
                 setIsPlaying(true);
                 if (runId) {
                     posthog.capture(PostHogEvent.RECORDING_PLAYED, {
@@ -163,56 +73,98 @@ function CustomAudioPlayer({
                 }
             }
         } catch (err) {
-            console.warn('Playback play() note:', err);
+            console.warn('Direct play note, trying blob fallback:', err);
+            try {
+                const res = await fetch(src);
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const bUrl = URL.createObjectURL(blob);
+                    audio.src = bUrl;
+                    await audio.play();
+                    setIsPlaying(true);
+                    setLoadError(null);
+                }
+            } catch {
+                setLoadError('Failed to play audio stream');
+            }
         }
     };
 
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!progressRef.current || !audioRef.current || !duration) return;
+        const audio = audioRef.current;
+        if (!progressRef.current || !audio || !duration || !isFinite(duration)) return;
         const rect = progressRef.current.getBoundingClientRect();
         const clickPos = (e.clientX - rect.left) / rect.width;
         const targetTime = Math.max(0, Math.min(duration, clickPos * duration));
-        audioRef.current.currentTime = targetTime;
+        audio.currentTime = targetTime;
         setCurrentTime(targetTime);
     };
 
     const skipTime = (offset: number) => {
-        if (!audioRef.current) return;
-        const newTime = Math.max(0, Math.min(duration || Infinity, audioRef.current.currentTime + offset));
-        audioRef.current.currentTime = newTime;
+        const audio = audioRef.current;
+        if (!audio) return;
+        const maxTime = duration && isFinite(duration) ? duration : Infinity;
+        const newTime = Math.max(0, Math.min(maxTime, audio.currentTime + offset));
+        audio.currentTime = newTime;
         setCurrentTime(newTime);
     };
 
     const toggleRate = () => {
-        if (!audioRef.current) return;
+        const audio = audioRef.current;
+        if (!audio) return;
         const rates = [1, 1.25, 1.5, 2];
         const nextIdx = (rates.indexOf(playbackRate) + 1) % rates.length;
         const nextRate = rates[nextIdx];
-        audioRef.current.playbackRate = nextRate;
+        audio.playbackRate = nextRate;
         setPlaybackRate(nextRate);
     };
 
     const toggleMute = () => {
-        if (!audioRef.current) return;
+        const audio = audioRef.current;
+        if (!audio) return;
         const nextMute = !isMuted;
-        audioRef.current.muted = nextMute;
+        audio.muted = nextMute;
         setIsMuted(nextMute);
     };
 
     const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = parseFloat(e.target.value);
         setVolume(val);
-        if (audioRef.current) {
-            audioRef.current.volume = val;
-            audioRef.current.muted = val === 0;
+        const audio = audioRef.current;
+        if (audio) {
+            audio.volume = val;
+            audio.muted = val === 0;
             setIsMuted(val === 0);
         }
     };
 
-    const progressPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+    const progressPercent = duration > 0 && isFinite(duration) ? Math.min(100, (currentTime / duration) * 100) : 0;
 
     return (
         <div className="w-full rounded-xl border border-border/60 bg-card/80 p-5 shadow-sm backdrop-blur-sm space-y-4">
+            <audio
+                ref={audioRef}
+                src={src}
+                preload="metadata"
+                onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+                onLoadedMetadata={(e) => {
+                    const d = e.currentTarget.duration;
+                    if (d && !isNaN(d) && isFinite(d)) setDuration(d);
+                    setLoadError(null);
+                }}
+                onDurationChange={(e) => {
+                    const d = e.currentTarget.duration;
+                    if (d && !isNaN(d) && isFinite(d)) setDuration(d);
+                }}
+                onEnded={() => {
+                    setIsPlaying(false);
+                    setCurrentTime(0);
+                }}
+                onError={() => {
+                    console.warn('Audio stream loaded');
+                }}
+                className="hidden"
+            />
             {/* Visualizer Waveform Animation */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
