@@ -1,3 +1,4 @@
+import inspect
 from typing import Any, BinaryIO, Dict, Optional
 
 import aioboto3
@@ -57,11 +58,19 @@ class S3FileSystem(BaseFileSystem):
             kwargs["config"] = self._config
         return kwargs
 
-    async def acreate_file(self, file_path: str, content: BinaryIO) -> bool:
+    async def acreate_file(self, file_path: str, content: Any) -> bool:
         try:
+            if hasattr(content, "read"):
+                res = content.read()
+                data = await res if inspect.isawaitable(res) else res
+            elif isinstance(content, (bytes, bytearray)):
+                data = bytes(content)
+            else:
+                data = bytes(content)
+
             async with self.session.client("s3", **self._client_kwargs()) as s3_client:
                 await s3_client.put_object(
-                    Bucket=self.bucket_name, Key=file_path, Body=await content.read()
+                    Bucket=self.bucket_name, Key=file_path, Body=data
                 )
             return True
         except ClientError:

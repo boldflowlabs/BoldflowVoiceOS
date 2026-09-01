@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import io
 import json
 from typing import Any, BinaryIO, Dict, Optional
@@ -88,12 +89,19 @@ class MinioFileSystem(BaseFileSystem):
             logger.debug(f"Bucket setup note: {e}")
             pass
 
-    async def acreate_file(self, file_path: str, content: BinaryIO) -> bool:
+    async def acreate_file(self, file_path: str, content: Any) -> bool:
         clean_path = file_path.lstrip("/")
         fallback = getattr(self, "local_fallback", None)
         saved_locally = False
         try:
-            data = await content.read()
+            if hasattr(content, "read"):
+                res = content.read()
+                data = await res if inspect.isawaitable(res) else res
+            elif isinstance(content, (bytes, bytearray)):
+                data = bytes(content)
+            else:
+                data = bytes(content)
+
             if fallback:
                 saved_locally = await fallback.acreate_file(clean_path, io.BytesIO(data))
 
@@ -170,7 +178,10 @@ class MinioFileSystem(BaseFileSystem):
                 "content_type": stat.content_type,
                 "storage_class": None,  # MinIO doesn't have storage classes like S3
             }
-        except S3Error:
+        except Exception:
+            fallback = getattr(self, "local_fallback", None)
+            if fallback:
+                return await fallback.aget_file_metadata(file_path)
             return None
 
     async def aget_presigned_put_url(
@@ -206,7 +217,10 @@ class MinioFileSystem(BaseFileSystem):
 
             await asyncio.to_thread(_fget)
             return True
-        except S3Error:
+        except Exception:
+            fallback = getattr(self, "local_fallback", None)
+            if fallback:
+                return await fallback.adownload_file(source_path, local_path)
             return False
 
     async def acopy_file(self, source_path: str, destination_path: str) -> bool:

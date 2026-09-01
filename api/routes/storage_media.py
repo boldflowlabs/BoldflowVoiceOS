@@ -91,6 +91,7 @@ def _parse_range_header(range_header: str, file_size: int) -> tuple[int, int]:
     return start, end
 
 
+import io
 import urllib.parse
 
 
@@ -230,13 +231,45 @@ async def serve_media_file(file_path: str, request: Request) -> Response:
         raise HTTPException(status_code=500, detail="Storage backend unsupported")
 
 
+async def save_media_file(file_path: str, request: Request) -> Response:
+    """Save an uploaded file directly into the active storage backend."""
+    decoded_path = urllib.parse.unquote(file_path)
+    # Prevent directory traversal
+    normalized = os.path.normpath(decoded_path).replace("\\", "/").lstrip("/")
+    if normalized.startswith("../") or "/../" in normalized:
+        raise HTTPException(status_code=400, detail="Invalid file path")
+
+    try:
+        body = await request.body()
+        success = await storage_fs.acreate_file(normalized, io.BytesIO(body))
+        if not success:
+            logger.error(f"Failed to write uploaded media file to storage: {normalized}")
+            raise HTTPException(status_code=500, detail="Failed to save file to storage")
+        return Response(status_code=200)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Error handling upload for {normalized}: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to save file to storage") from exc
+
+
 @router.get("/voice-audio/{file_path:path}", summary="Serve voice audio or transcript from storage")
 async def get_voice_audio(file_path: str, request: Request):
     """Serve audio recordings, assets, and transcripts stored in voice-audio storage."""
     return await serve_media_file(file_path, request)
 
 
+@router.put("/voice-audio/{file_path:path}", summary="Upload voice audio, document, or asset to storage")
+async def put_voice_audio(file_path: str, request: Request):
+    """Store uploaded audio recordings, assets, knowledge base documents, or campaign CSVs."""
+    return await save_media_file(file_path, request)
+
+
 if MINIO_BUCKET and MINIO_BUCKET != "voice-audio":
     @router.get(f"/{MINIO_BUCKET}/{{file_path:path}}", summary="Serve storage media from custom bucket")
     async def get_custom_bucket_media(file_path: str, request: Request):
         return await serve_media_file(file_path, request)
+
+    @router.put(f"/{MINIO_BUCKET}/{{file_path:path}}", summary="Upload storage media to custom bucket")
+    async def put_custom_bucket_media(file_path: str, request: Request):
+        return await save_media_file(file_path, request)

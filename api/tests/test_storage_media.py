@@ -107,3 +107,65 @@ def test_serve_minio_storage_file_and_range():
             assert resp_range.status_code == 206
             assert resp_range.headers["content-range"] == "bytes 0-99/1000"
             assert resp_range.headers["accept-ranges"] == "bytes"
+
+
+def test_put_local_storage_file():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        local_fs = LocalFileSystem(tmpdir)
+        app = FastAPI()
+        app.include_router(storage_media_router)
+
+        with patch("api.routes.storage_media.storage_fs", local_fs):
+            client = TestClient(app)
+
+            file_payload = b"%PDF-1.4 test content in PDF"
+            put_resp = client.put(
+                "/voice-audio/knowledge_base/org1/doc1/test.pdf",
+                content=file_payload,
+                headers={"Content-Type": "application/pdf"},
+            )
+            assert put_resp.status_code == 200
+
+            # Verify file exists on local storage
+            get_resp = client.get("/voice-audio/knowledge_base/org1/doc1/test.pdf")
+            assert get_resp.status_code == 200
+            assert get_resp.content == file_payload
+
+
+def test_put_minio_storage_file():
+    app = FastAPI()
+    app.include_router(storage_media_router)
+
+    mock_fs = MagicMock()
+    mock_fs.bucket_name = "voice-audio"
+    mock_fs.acreate_file = MagicMock()
+
+    async def _mock_acreate(file_path, content):
+        return True
+
+    mock_fs.acreate_file = _mock_acreate
+
+    with patch("api.routes.storage_media.storage_fs", mock_fs):
+        client = TestClient(app)
+
+        csv_payload = b"name,phone\nJohn,1234567890"
+        put_resp = client.put(
+            "/voice-audio/campaigns/org1/123/contacts.csv",
+            content=csv_payload,
+            headers={"Content-Type": "text/csv"},
+        )
+        assert put_resp.status_code == 200
+
+
+def test_put_path_traversal_rejected():
+    app = FastAPI()
+    app.include_router(storage_media_router)
+    client = TestClient(app)
+
+    put_resp = client.put(
+        "/voice-audio/%2e%2e/etc/passwd",
+        content=b"malicious",
+    )
+    assert put_resp.status_code == 400
+
+
