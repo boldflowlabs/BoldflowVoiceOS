@@ -31,7 +31,17 @@ class LocalFileSystem(BaseFileSystem):
 
     def _get_full_path(self, file_path: str) -> str:
         """Get the full path by joining with base path."""
-        return os.path.join(self.base_path, file_path)
+        clean = file_path.lstrip("/\\")
+        full_path = os.path.join(self.base_path, clean)
+        if os.path.exists(full_path):
+            return full_path
+        base_name = os.path.basename(self.base_path.rstrip("/\\"))
+        if base_name and (clean.startswith(f"{base_name}/") or clean.startswith(f"{base_name}\\")):
+            stripped = clean[len(base_name) + 1:]
+            alt_path = os.path.join(self.base_path, stripped)
+            if os.path.exists(alt_path):
+                return alt_path
+        return full_path
 
     async def acreate_file(self, file_path: str, content: Any) -> bool:
         try:

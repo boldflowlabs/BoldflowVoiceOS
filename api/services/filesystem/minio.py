@@ -9,6 +9,7 @@ from minio import Minio
 from minio.error import S3Error
 
 import os
+from api.constants import APP_ROOT_DIR
 from .base import BaseFileSystem
 from .local import LocalFileSystem
 
@@ -53,7 +54,8 @@ class MinioFileSystem(BaseFileSystem):
         self.secret_key = secret_key
 
         # Local fallback filesystem so audio is NEVER lost even if MinIO container is offline
-        storage_dir = os.getenv("STORAGE_LOCAL_DIR") or os.path.join(os.getcwd(), "storage", bucket_name)
+        default_storage_dir = str(APP_ROOT_DIR.parent / "storage" / bucket_name)
+        storage_dir = os.getenv("STORAGE_LOCAL_DIR") or default_storage_dir
         self.local_fallback = LocalFileSystem(storage_dir)
 
         # Client for internal operations (uploads, etc.)
@@ -164,12 +166,21 @@ class MinioFileSystem(BaseFileSystem):
 
     async def aget_file_metadata(self, file_path: str) -> Optional[Dict[str, Any]]:
         """Get MinIO object metadata."""
+        clean_path = file_path.lstrip("/")
         try:
 
-            def _stat():
-                return self.client.stat_object(self.bucket_name, file_path)
+            def _stat(k: str):
+                return self.client.stat_object(self.bucket_name, k)
 
-            stat = await asyncio.to_thread(_stat)
+            try:
+                stat = await asyncio.to_thread(_stat, clean_path)
+            except Exception:
+                if clean_path.startswith(f"{self.bucket_name}/"):
+                    stripped = clean_path[len(self.bucket_name) + 1:]
+                    stat = await asyncio.to_thread(_stat, stripped)
+                else:
+                    raise
+
             return {
                 "size": stat.size,
                 "created_at": stat.last_modified,
@@ -181,7 +192,7 @@ class MinioFileSystem(BaseFileSystem):
         except Exception:
             fallback = getattr(self, "local_fallback", None)
             if fallback:
-                return await fallback.aget_file_metadata(file_path)
+                return await fallback.aget_file_metadata(clean_path)
             return None
 
     async def aget_presigned_put_url(
@@ -201,7 +212,8 @@ class MinioFileSystem(BaseFileSystem):
         The bucket policy allows anonymous s3:PutObject, so no signature is needed.
         """
         try:
-            url = f"{self.public_endpoint}/{self.bucket_name}/{file_path}"
+            clean = file_path.lstrip("/")
+            url = f"{self.public_endpoint}/{self.bucket_name}/{clean}"
             logger.debug(f"Generated unsigned upload URL: {url}")
             return url
         except Exception as e:
@@ -210,17 +222,26 @@ class MinioFileSystem(BaseFileSystem):
 
     async def adownload_file(self, source_path: str, local_path: str) -> bool:
         """Download a file from MinIO to local path."""
+        clean_path = source_path.lstrip("/")
         try:
 
-            def _fget():
-                self.client.fget_object(self.bucket_name, source_path, local_path)
+            def _fget(k: str):
+                self.client.fget_object(self.bucket_name, k, local_path)
 
-            await asyncio.to_thread(_fget)
-            return True
-        except Exception:
+            try:
+                await asyncio.to_thread(_fget, clean_path)
+                return True
+            except Exception:
+                if clean_path.startswith(f"{self.bucket_name}/"):
+                    stripped = clean_path[len(self.bucket_name) + 1:]
+                    await asyncio.to_thread(_fget, stripped)
+                    return True
+                raise
+        except Exception as exc:
+            logger.warning(f"MinIO fget_object failed for {clean_path} ({exc}), checking local fallback")
             fallback = getattr(self, "local_fallback", None)
             if fallback:
-                return await fallback.adownload_file(source_path, local_path)
+                return await fallback.adownload_file(clean_path, local_path)
             return False
 
     async def acopy_file(self, source_path: str, destination_path: str) -> bool:

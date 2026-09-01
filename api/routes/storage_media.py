@@ -101,9 +101,19 @@ async def _serve_minio_file(
     """Serve a file from MinIO with Range support, falling back to local disk if MinIO is offline."""
     clean_path = file_path.lstrip("/")
     try:
-        stat = await asyncio.to_thread(
-            fs.client.stat_object, fs.bucket_name, clean_path
-        )
+        try:
+            stat = await asyncio.to_thread(
+                fs.client.stat_object, fs.bucket_name, clean_path
+            )
+        except Exception:
+            if clean_path.startswith(f"{fs.bucket_name}/"):
+                stripped = clean_path[len(fs.bucket_name) + 1:]
+                stat = await asyncio.to_thread(
+                    fs.client.stat_object, fs.bucket_name, stripped
+                )
+                clean_path = stripped
+            else:
+                raise
     except Exception as exc:
         if hasattr(fs, "local_fallback") and fs.local_fallback:
             try:
