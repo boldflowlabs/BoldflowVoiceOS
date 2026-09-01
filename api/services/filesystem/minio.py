@@ -46,9 +46,15 @@ class MinioFileSystem(BaseFileSystem):
                 f"MINIO_PUBLIC_ENDPOINT must include a scheme (http:// or https://), got: {public_endpoint!r}"
             )
 
+        cleaned_pub = public_endpoint.rstrip("/")
+        if cleaned_pub.endswith(f"/{bucket_name}"):
+            cleaned_pub = cleaned_pub[: -len(f"/{bucket_name}")]
+        elif cleaned_pub.endswith("/voice-audio"):
+            cleaned_pub = cleaned_pub[: -len("/voice-audio")]
+
         self.bucket_name = bucket_name
         self.endpoint = endpoint
-        self.public_endpoint = public_endpoint.rstrip("/")
+        self.public_endpoint = cleaned_pub
         self.secure = secure
         self.access_key = access_key
         self.secret_key = secret_key
@@ -179,7 +185,8 @@ class MinioFileSystem(BaseFileSystem):
                     stripped = clean_path[len(self.bucket_name) + 1:]
                     stat = await asyncio.to_thread(_stat, stripped)
                 else:
-                    raise
+                    prefixed = f"{self.bucket_name}/{clean_path}"
+                    stat = await asyncio.to_thread(_stat, prefixed)
 
             return {
                 "size": stat.size,
@@ -236,6 +243,13 @@ class MinioFileSystem(BaseFileSystem):
                     stripped = clean_path[len(self.bucket_name) + 1:]
                     await asyncio.to_thread(_fget, stripped)
                     return True
+                else:
+                    prefixed = f"{self.bucket_name}/{clean_path}"
+                    try:
+                        await asyncio.to_thread(_fget, prefixed)
+                        return True
+                    except Exception:
+                        pass
                 raise
         except Exception as exc:
             logger.warning(f"MinIO fget_object failed for {clean_path} ({exc}), checking local fallback")

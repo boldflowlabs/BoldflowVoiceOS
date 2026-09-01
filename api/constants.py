@@ -269,7 +269,17 @@ MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
 # BACKEND_API_ENDPOINT / PUBLIC_BASE_URL; set explicitly only to point object
 # storage at a separate origin.
 _minio_pub_env = os.getenv("MINIO_PUBLIC_ENDPOINT", "").strip()
-if BACKEND_API_ENDPOINT and (_minio_pub_env in ("", "http://localhost:9000", "http://127.0.0.1:9000")):
+_internal_minio_hosts = (
+    "",
+    "http://localhost:9000",
+    "http://127.0.0.1:9000",
+    "http://minio:9000",
+    "https://minio:9000",
+    "minio:9000",
+    "localhost:9000",
+    "127.0.0.1:9000",
+)
+if BACKEND_API_ENDPOINT and (_minio_pub_env in _internal_minio_hosts or "minio:9000" in _minio_pub_env):
     MINIO_PUBLIC_ENDPOINT = BACKEND_API_ENDPOINT
 elif _minio_pub_env:
     MINIO_PUBLIC_ENDPOINT = _minio_pub_env
@@ -279,6 +289,11 @@ else:
         or PUBLIC_BASE_URL
         or "http://localhost:8000"
     )
+
+if MINIO_PUBLIC_ENDPOINT:
+    MINIO_PUBLIC_ENDPOINT = MINIO_PUBLIC_ENDPOINT.rstrip("/")
+    if MINIO_PUBLIC_ENDPOINT.endswith("/voice-audio"):
+        MINIO_PUBLIC_ENDPOINT = MINIO_PUBLIC_ENDPOINT[:-len("/voice-audio")]
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 MINIO_BUCKET = os.getenv("MINIO_BUCKET", "voice-audio")

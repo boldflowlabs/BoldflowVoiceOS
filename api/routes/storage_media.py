@@ -249,6 +249,12 @@ async def save_media_file(file_path: str, request: Request) -> Response:
     if normalized.startswith("../") or "/../" in normalized:
         raise HTTPException(status_code=400, detail="Invalid file path")
 
+    # If normalized has redundant bucket name prefix, strip it so it's stored with clean canonical key
+    if normalized.startswith("voice-audio/"):
+        normalized = normalized[len("voice-audio/"):]
+    elif MINIO_BUCKET and normalized.startswith(f"{MINIO_BUCKET}/"):
+        normalized = normalized[len(MINIO_BUCKET) + 1:]
+
     try:
         body = await request.body()
         success = await storage_fs.acreate_file(normalized, io.BytesIO(body))
