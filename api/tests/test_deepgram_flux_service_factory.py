@@ -22,6 +22,35 @@ def test_deepgram_stt_schema_includes_flux_multilingual_language_options():
     assert "es" in language_schema["model_options"]["flux-general-multi"]
 
 
+def test_deepgram_stt_schema_nova_3_languages():
+    language_schema = DeepgramSTTConfiguration.model_json_schema()["properties"][
+        "language"
+    ]
+    nova_options = language_schema["model_options"]["nova-3-general"]
+
+    expected_languages = [
+        "multi",
+        "as",
+        "as-IN",
+        "bn",
+        "en",
+        "en-US",
+        "en-AU",
+        "en-GB",
+        "en-IN",
+        "en-NZ",
+        "gu",
+        "gu-IN",
+        "hi",
+        "kn",
+        "mr",
+        "ta",
+        "te",
+    ]
+    assert list(nova_options) == expected_languages
+
+
+
 def test_create_deepgram_flux_multi_uses_flux_service_with_language_hint():
     user_config = SimpleNamespace(
         stt=SimpleNamespace(

@@ -20,6 +20,7 @@ export const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
     "ar-IQ": "Arabic (Iraq)",
     "ar-IR": "Arabic (Iran)",
     // Other languages
+    "as": "Assamese",
     "be": "Belarusian",
     "bn": "Bengali",
     "bs": "Bosnian",
@@ -44,6 +45,7 @@ export const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
     "fi": "Finnish",
     "fr": "French",
     "fr-CA": "French (Canada)",
+    "gu": "Gujarati",
     "he": "Hebrew",
     "hi": "Hindi",
     "hr": "Croatian",
