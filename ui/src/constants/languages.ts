@@ -88,7 +88,7 @@ export const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
     // Sarvam Indian languages
     "unknown": "Auto-detect",
     "bn-IN": "Bengali",
-    "gu-IN": "Gujarati",
+    "gu-IN": "Gujarati (India)",
     "hi-IN": "Hindi",
     "kn-IN": "Kannada",
     "ml-IN": "Malayalam",
@@ -97,7 +97,7 @@ export const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
     "pa-IN": "Punjabi",
     "ta-IN": "Tamil",
     "te-IN": "Telugu",
-    "as-IN": "Assamese",
+    "as-IN": "Assamese (India)",
     "ur-IN": "Urdu",
     "ne-IN": "Nepali",
     "kok-IN": "Konkani",
