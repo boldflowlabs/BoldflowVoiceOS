@@ -13,6 +13,8 @@ from api.services.auth.depends import get_superuser
 from api.services.auth.stack_auth import stackauth
 from api.utils.auth import create_jwt_token
 
+from sqlalchemy import text
+
 router = APIRouter(prefix="/superuser", tags=["superuser"])
 
 
@@ -218,3 +220,105 @@ async def get_workflow_runs(
         limit=limit,
         total_pages=total_pages,
     )
+
+
+@router.post("/cleanup-archived")
+async def cleanup_archived_workflows_and_tools(
+    target_org_id: Optional[int] = Query(
+        None,
+        description="Optional organization ID to target. If omitted, all organizations associated with the admin account are targeted.",
+    ),
+    user: UserModel = Depends(get_superuser),
+) -> dict:
+    """
+    Permanently delete all archived workflows and tools belonging to the admin/superuser's organizations.
+    Resolves circular foreign keys and clears orphaned runs/definitions safely.
+    Requires superuser privileges.
+    """
+    async with db_client.async_session() as session:
+        # 1. Resolve target organization IDs
+        org_ids = set()
+        if target_org_id is not None:
+            org_ids.add(target_org_id)
+        else:
+            if user.selected_organization_id:
+                org_ids.add(user.selected_organization_id)
+
+            user_orgs = await session.execute(
+                text("SELECT organization_id FROM organization_users WHERE user_id = :user_id"),
+                {"user_id": user.id},
+            )
+            for row in user_orgs.fetchall():
+                org_ids.add(row[0])
+
+        if not org_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="No organization found for this superuser account.",
+            )
+
+        org_list = list(org_ids)
+
+        # 2. Delete archived tools
+        tool_del = await session.execute(
+            text("DELETE FROM tools WHERE organization_id = ANY(:org_ids) AND status = 'archived' RETURNING id"),
+            {"org_ids": org_list},
+        )
+        deleted_tools_count = len(tool_del.fetchall())
+
+        # 3. Find archived workflows
+        wf_res = await session.execute(
+            text("SELECT id FROM workflows WHERE organization_id = ANY(:org_ids) AND status = 'archived'"),
+            {"org_ids": org_list},
+        )
+        wf_ids = [r[0] for r in wf_res.fetchall()]
+
+        deleted_workflows_count = 0
+        if wf_ids:
+            # 3a. Disassociate released_definition_id
+            await session.execute(
+                text("UPDATE workflows SET released_definition_id = NULL WHERE id = ANY(:wf_ids)"),
+                {"wf_ids": wf_ids},
+            )
+
+            # 3b. Nullify credit ledger references to runs of these workflows
+            await session.execute(
+                text("""
+                    UPDATE credit_ledger_entries 
+                    SET workflow_run_id = NULL 
+                    WHERE workflow_run_id IN (
+                        SELECT id FROM workflow_runs WHERE workflow_id = ANY(:wf_ids)
+                    )
+                """),
+                {"wf_ids": wf_ids},
+            )
+
+            # 3c. Delete workflow runs
+            await session.execute(
+                text("DELETE FROM workflow_runs WHERE workflow_id = ANY(:wf_ids)"),
+                {"wf_ids": wf_ids},
+            )
+
+            # 3d. Delete workflow definitions
+            await session.execute(
+                text("DELETE FROM workflow_definitions WHERE workflow_id = ANY(:wf_ids)"),
+                {"wf_ids": wf_ids},
+            )
+
+            # 3e. Delete the workflows
+            wf_del = await session.execute(
+                text("DELETE FROM workflows WHERE id = ANY(:wf_ids) RETURNING id"),
+                {"wf_ids": wf_ids},
+            )
+            deleted_workflows_count = len(wf_del.fetchall())
+
+        await session.commit()
+
+        return {
+            "status": "success",
+            "message": f"Successfully deleted {deleted_workflows_count} archived workflows and {deleted_tools_count} archived tools.",
+            "deleted_workflows_count": deleted_workflows_count,
+            "deleted_tools_count": deleted_tools_count,
+            "targeted_organization_ids": org_list,
+        }
+
